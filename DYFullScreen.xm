@@ -3357,10 +3357,6 @@ static BOOL DYFSIsAuthorWorkDetailContext(UIView *view) {
 }
 %end
 
-%group DYFSAuthorSwiftCommentInput
-
-%end
-
 %ctor {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults objectForKey:kDYFSFullScreenEnabledKey] == nil) {
@@ -3374,11 +3370,6 @@ static BOOL DYFSIsAuthorWorkDetailContext(UIView *view) {
         gDYFSStretchedTables = [NSHashTable weakObjectsHashTable];
     }
     DYFSRegisterRestore(DYFSRestoreFeedTables);
-
-    Class swiftCommentInput = NSClassFromString(@"AWECommentInputViewSwiftImpl.CommentInputContainerView");
-    if (swiftCommentInput) {
-        %init(DYFSAuthorSwiftCommentInput, CommentInputContainerView=swiftCommentInput);
-    }
 
     NSLog(@"[DY-FullScreen] loaded, fullscreen=%@", DYFSIsEnabled() ? @"ON" : @"OFF");
 }

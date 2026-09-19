@@ -2912,16 +2912,6 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"隐藏右上搜索", @"key":@"DYYYHideDiscover"},
         @{@"title":@"隐藏搜索入口", @"key":@"DYYYHideSearchEntrance"},
         @{@"title":@"隐藏搜索气泡", @"key":@"DYYYHideSearchBubble"},
-        @{@"title":@"隐藏底栏商城", @"key":@"DYYYHideShopButton"},
-        @{@"title":@"隐藏底栏消息", @"key":@"DYYYHideMessageButton"},
-        @{@"title":@"隐藏底栏朋友", @"key":@"DYYYHideFriendsButton"},
-        @{@"title":@"隐藏底栏我的", @"key":@"DYYYHideMyButton"},
-        @{@"title":@"隐藏底栏加号", @"key":@"DYYYHidePlusButton"},
-        @{@"title":@"隐藏底栏热榜", @"key":@"DYYYHideHotSearch"},
-        @{@"title":@"隐藏底栏评论", @"key":@"DYYYHideComment"},
-        @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
-        @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},
-        @{@"title":@"精简平板底栏", @"key":@"DYYYHidePadTabBarElements"},
         @{@"title":@"隐藏左侧边栏", @"key":@"DYYYHideLeftSideBar"},
         @{@"title":@"隐藏侧栏红点", @"key":@"DYYYHideSidebarDot"},
         @{@"title":@"隐藏消息顶栏红包", @"key":@"DYYYHideMessageTabRedPacket"},
@@ -2938,24 +2928,6 @@ static UIViewController *DYToolsTopViewController(void) {
     ];
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return _items.count; }
-- (BOOL)dy_valueForKey:(NSString *)key {
-    if ([key isEqualToString:@"DYYYHideMusicButton"]) key = kDYToolsHideMusicButtonKey;
-    else if ([key isEqualToString:@"DYYYHideLocation"]) key = kDYToolsHideLocationKey;
-    else if ([key isEqualToString:@"DYYYHideEnterLive"]) key = kDYToolsHideEnterLiveKey;
-    else if ([key isEqualToString:@"DYYYHideHotspot"]) key = kDYToolsRemoveHotspotKey;
-    else if ([key isEqualToString:@"DYYYHideQuqishuiting"]) key = kDYToolsRemoveShuiTingKey;
-    else if ([key isEqualToString:@"DYYYHideInteractionSearch"]) key = kDYToolsRemoveRelatedSearchKey;
-    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
-}
-- (NSString *)dy_storageKey:(NSString *)key {
-    if ([key isEqualToString:@"DYYYHideMusicButton"]) return kDYToolsHideMusicButtonKey;
-    if ([key isEqualToString:@"DYYYHideLocation"]) return kDYToolsHideLocationKey;
-    if ([key isEqualToString:@"DYYYHideEnterLive"]) return kDYToolsHideEnterLiveKey;
-    if ([key isEqualToString:@"DYYYHideHotspot"]) return kDYToolsRemoveHotspotKey;
-    if ([key isEqualToString:@"DYYYHideQuqishuiting"]) return kDYToolsRemoveShuiTingKey;
-    if ([key isEqualToString:@"DYYYHideInteractionSearch"]) return kDYToolsRemoveRelatedSearchKey;
-    return key;
-}
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     static NSString *reuse = @"DYToolsTopBarCell";
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
@@ -2966,20 +2938,82 @@ static UIViewController *DYToolsTopViewController(void) {
     cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
     UISwitch *sw = [UISwitch new];
     sw.onTintColor = UIColor.systemBlueColor;
-    sw.on = [self dy_valueForKey:item[@"key"]];
+    sw.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
     sw.tag = indexPath.row;
     [sw addTarget:self action:@selector(dy_switch:) forControlEvents:UIControlEventValueChanged];
     cell.accessoryView = sw;
     return cell;
 }
 - (void)dy_switch:(UISwitch *)sender {
-    NSString *key = [self dy_storageKey:_items[sender.tag][@"key"]];
+    NSString *key = _items[sender.tag][@"key"];
     [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:key];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 - (void)dy_setAll:(BOOL)value {
     NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-    for (NSDictionary *item in _items) [d setBool:value forKey:[self dy_storageKey:item[@"key"]]];
+    for (NSDictionary *item in _items) [d setBool:value forKey:item[@"key"]];
+    [d synchronize];
+    [self.tableView reloadData];
+}
+- (void)dy_selectAll { [self dy_setAll:YES]; }
+- (void)dy_selectNone { [self dy_setAll:NO]; }
+@end
+
+@interface DYToolsBottomBarViewController : UITableViewController
+@end
+
+@implementation DYToolsBottomBarViewController {
+    NSArray<NSDictionary *> *_items;
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"移除底栏";
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+    self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.tableView.rowHeight = 52.0;
+    _items = @[
+        @{@"title":@"隐藏底栏商城", @"key":@"DYYYHideShopButton"},
+        @{@"title":@"隐藏双列入口", @"key":@"DYYYHideDoubleColumnEntry"},
+        @{@"title":@"隐藏底栏消息", @"key":@"DYYYHideMessageButton"},
+        @{@"title":@"隐藏底栏朋友", @"key":@"DYYYHideFriendsButton"},
+        @{@"title":@"隐藏底栏我的", @"key":@"DYYYHideMyButton"},
+        @{@"title":@"隐藏底栏加号", @"key":@"DYYYHidePlusButton"},
+        @{@"title":@"隐藏底栏热榜", @"key":@"DYYYHideHotSearch"},
+        @{@"title":@"隐藏底栏评论", @"key":@"DYYYHideComment"},
+        @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
+        @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},
+        @{@"title":@"精简平板底栏", @"key":@"DYYYHidePadTabBarElements"}
+    ];
+    self.navigationItem.rightBarButtonItems = @[
+        [[UIBarButtonItem alloc] initWithTitle:@"一键取消" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectNone)],
+        [[UIBarButtonItem alloc] initWithTitle:@"一键全选" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectAll)]
+    ];
+}
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return _items.count; }
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuse = @"DYToolsBottomBarCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuse];
+    NSDictionary *item = _items[indexPath.row];
+    cell.textLabel.text = item[@"title"];
+    cell.textLabel.font = [UIFont systemFontOfSize:16.0];
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    UISwitch *sw = [UISwitch new];
+    sw.onTintColor = UIColor.systemBlueColor;
+    sw.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
+    sw.tag = indexPath.row;
+    [sw addTarget:self action:@selector(dy_switch:) forControlEvents:UIControlEventValueChanged];
+    cell.accessoryView = sw;
+    return cell;
+}
+- (void)dy_switch:(UISwitch *)sender {
+    NSString *key = _items[sender.tag][@"key"];
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:key];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+- (void)dy_setAll:(BOOL)value {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    for (NSDictionary *item in _items) [d setBool:value forKey:item[@"key"]];
     [d synchronize];
     [self.tableView reloadData];
 }
@@ -3143,7 +3177,7 @@ static UIViewController *DYToolsTopViewController(void) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
         case 0: return 1; // Fullscreen
-        case 1: return 6; // Video
+        case 1: return 7; // Video
         case 2: return 2; // Live / interaction
         default: return 0;
     }
@@ -3230,6 +3264,10 @@ static UIViewController *DYToolsTopViewController(void) {
                 cell.textLabel.text = @"移除顶栏";
                 cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
                 break;
+            case 6:
+                cell.textLabel.text = @"移除底栏";
+                cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+                break;
         }
     } else {
         switch (indexPath.row) {
@@ -3256,6 +3294,12 @@ static UIViewController *DYToolsTopViewController(void) {
     if (indexPath.section == 1 && indexPath.row == 5) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DYToolsTopBarViewController *vc = [DYToolsTopBarViewController new];
+        [self.navigationController pushViewController:vc animated:YES];
+        return;
+    }
+    if (indexPath.section == 1 && indexPath.row == 6) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        DYToolsBottomBarViewController *vc = [DYToolsBottomBarViewController new];
         [self.navigationController pushViewController:vc animated:YES];
         return;
     }

@@ -3917,6 +3917,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     _globalSearchController.obscuresBackgroundDuringPresentation = NO;
     _globalSearchController.hidesNavigationBarDuringPresentation = NO;
     _globalSearchController.searchBar.enablesReturnKeyAutomatically = NO;
+    _globalSearchController.searchBar.delegate = self;
     _globalSearchController.searchBar.placeholder = @"搜索插件功能";
     _globalSearchController.searchBar.autocapitalizationType = UITextAutocapitalizationTypeNone;
     _globalSearchController.searchBar.returnKeyType = UIReturnKeyDone;
@@ -4202,8 +4203,8 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 }
 
 - (void)didPresentSearchController:(UISearchController *)searchController {
+    // 不主动抢 firstResponder；由系统处理搜索框编辑状态。
     searchController.searchBar.userInteractionEnabled = YES;
-    [searchController.searchBar becomeFirstResponder];
 }
 
 - (void)willDismissSearchController:(UISearchController *)searchController {

@@ -3900,7 +3900,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
 
     if (!cell) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
                                       reuseIdentifier:reuse];
     }
 

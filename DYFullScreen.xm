@@ -1349,6 +1349,33 @@ static BOOL DYToolsBool(NSString *key) {
 %end
 
 
+@interface LOTAnimationView : UIView
+@end
+@interface AWEAdAvatarView : UIView
+@end
+@interface AWENearbySkyLightCapsuleView : UIView
+@end
+@interface AFDCancelMuteAwemeView : UIView
+@end
+@interface AWEPlayDanmakuInputContainView : UIView
+@end
+@interface AWEShowPlayletCommentHeaderView : UIView
+@end
+@interface AWECommentPanelHeaderSwiftImpl_CommentHeaderGeneralView : UIView
+@end
+@interface AWECommentPanelHeaderSwiftImpl_CommentHeaderGoodsView : UIView
+@end
+@interface AWECommentPanelHeaderSwiftImpl_CommentHeaderTemplateAnchorView : UIView
+@end
+@interface AWETemplateTagsCommonView : UIView
+@end
+@interface AFDSkylightCellBubble : UIView
+@end
+@interface AWEIMMessageTabSideBarView : UIView
+@end
+@interface AWEFeedUnfollowFamiliarFollowAndDislikeView : UIView
+@end
+
 #pragma mark - DYYY topbar removal hooks
 %hook AWEFeedLiveMarkView
 - (void)setHidden:(BOOL)hidden {
@@ -2687,22 +2714,6 @@ static NSHashTable *processedParentViews = nil;
 }
 %end
 
-%hook AWECommentInputBackgroundView
-- (void)layoutSubviews {
-    %orig;
-
-    if (DYToolsBool(@"DYYYHideComment")) {
-        [self removeFromSuperview];
-        return;
-    }
-
-    CGAffineTransform newTransform = CGAffineTransformMakeTranslation(0, gDYFSOriginalTabBarHeight - gDYFSCurrentTabBarHeight);
-
-    if (!CGAffineTransformEqualToTransform(self.transform, newTransform)) {
-        self.transform = newTransform;
-    }
-}
-%end
 
 %hook AWEIMSkylightListView
 - (void)setFrame:(CGRect)frame {

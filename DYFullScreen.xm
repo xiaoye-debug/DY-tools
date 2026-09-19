@@ -3974,9 +3974,9 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 #pragma mark - DYYY Basic Feature Hooks
 
 
-// 广告 Hook 暂停迁移：避免 40.x Logos 预处理器在相邻 %hook 上生成嵌套函数。
+// 广告 Hook 暂停迁移：避免 40.x Logos 预处理器生成嵌套函数。
 // 青少年模式 Hook 暂停迁移：当前 40.x 版本会触发 Logos 生成函数嵌套编译错误。
-// AWEVersionUpdateManager 的 startVersionUpdateWorkflow:completion: 在 40.x 的 Logos 签名不稳定，暂不 Hook，避免预处理器 %orig 参数结构错误。
+// AWEVersionUpdateManager 的 startVersionUpdateWorkflow:completion: 在 40.x 的 Logos 签名不稳定，暂不处理。
 %hook AWEAwemeStatusModel
 - (void)setListenVideoStatus:(NSInteger)status {
     if(status==1&&DYToolsBool(@"DYYYEnableBackgroundListen"))status=2;
@@ -3988,7 +3988,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 %end
 // 投屏 VPN 检测 Hook 暂停迁移：40.x Logos 在该组 Hook 上出现嵌套函数生成错误，先保证主工程稳定编译。\n\n#pragma mark - DYYY Exact Comment Time + Dynamic Island Playback Info
 
-// 该组 40.x Hook 当前暂停迁移，避免 Logos 预处理器生成嵌套函数导致整个工程无法编译。
+// 该组 40.x 功能当前暂停迁移，避免 Logos 预处理器生成嵌套函数导致整个工程无法编译。
 // 后续单独验证 AWEDateTimeFormatter / MPNowPlayingInfoCenter 的 40.x 实际签名后再恢复。
 
 #pragma mark - DYYY Privacy Record Upload + Live Duration

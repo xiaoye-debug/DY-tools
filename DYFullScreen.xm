@@ -15,6 +15,13 @@ BOOL DYFSIsEnabled(void) {
         [defaults setBool:NO forKey:kDYFSFullScreenEnabledKey];
         [defaults synchronize];
     }
+    if ([defaults objectForKey:kDYToolsRemoveShuiTingKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsRemoveShuiTingKey];
+    }
+    if ([defaults objectForKey:kDYToolsRemoveRelatedSearchKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsRemoveRelatedSearchKey];
+    }
+    [defaults synchronize];
     return [defaults boolForKey:kDYFSFullScreenEnabledKey];
 }
 
@@ -1014,6 +1021,89 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
     DYFSRegisterRestore(DYFSRestoreRichManaged);
 }
 
+#pragma mark - DY-tools UI features
+
+static NSString *const kDYToolsRemoveShuiTingKey = @"DYToolsRemoveShuiTing";
+static NSString *const kDYToolsRemoveRelatedSearchKey = @"DYToolsRemoveRelatedSearch";
+
+static BOOL DYToolsBool(NSString *key) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+}
+
+static BOOL DYToolsShouldRemoveUIString(NSString *text) {
+    if (!text.length) return NO;
+
+    if (DYToolsBool(kDYToolsRemoveShuiTingKey)) {
+        NSString *s = [text stringByReplacingOccurrencesOfString:@" " withString:@""];
+        if ([s containsString:@"去汽水听"]) return YES;
+    }
+
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
+        if ([text containsString:@"相关搜索"]) return YES;
+    }
+
+    return NO;
+}
+
+static void DYToolsApplyLabelVisibility(UILabel *label) {
+    if (!label) return;
+    BOOL remove = DYToolsShouldRemoveUIString(label.text);
+    if (remove) {
+        label.hidden = YES;
+        label.alpha = 0.0;
+    } else if (label.hidden && [label.accessibilityIdentifier hasPrefix:@"DYToolsHidden"]) {
+        label.hidden = NO;
+        label.alpha = 1.0;
+    }
+    if (remove) label.accessibilityIdentifier = @"DYToolsHiddenLabel";
+}
+
+static void DYToolsApplyButtonVisibility(UIButton *button) {
+    if (!button) return;
+
+    NSString *title = [button titleForState:UIControlStateNormal];
+    if (!title.length) title = button.accessibilityLabel;
+
+    BOOL remove = DYToolsShouldRemoveUIString(title);
+    if (remove) {
+        button.hidden = YES;
+        button.alpha = 0.0;
+    } else if ([button.accessibilityIdentifier hasPrefix:@"DYToolsHidden"]) {
+        button.hidden = NO;
+        button.alpha = 1.0;
+        button.accessibilityIdentifier = nil;
+    }
+    if (remove) button.accessibilityIdentifier = @"DYToolsHiddenButton";
+}
+
+@interface UILabel (DYToolsUIFeatures)
+@end
+
+%hook UILabel
+- (void)setText:(NSString *)text {
+    %orig(text);
+    DYToolsApplyLabelVisibility(self);
+}
+- (void)layoutSubviews {
+    %orig;
+    DYToolsApplyLabelVisibility(self);
+}
+%end
+
+@interface UIButton (DYToolsUIFeatures)
+@end
+
+%hook UIButton
+- (void)setTitle:(NSString *)title forState:(UIControlState)state {
+    %orig(title, state);
+    if (state == UIControlStateNormal) DYToolsApplyButtonVisibility(self);
+}
+- (void)layoutSubviews {
+    %orig;
+    DYToolsApplyButtonVisibility(self);
+}
+%end
+
 #pragma mark - DY-tools control panel
 
 @interface AWESettingItemModel : NSObject
@@ -1105,6 +1195,8 @@ static void DYToolsRefreshLayout(void) {
 
 @implementation DYToolsControlViewController {
     UISwitch *_fullscreenSwitch;
+    UISwitch *_removeShuiTingSwitch;
+    UISwitch *_removeRelatedSearchSwitch;
 }
 
 - (void)viewDidLoad {
@@ -1139,6 +1231,18 @@ static void DYToolsRefreshLayout(void) {
     [_fullscreenSwitch addTarget:self
                           action:@selector(dy_fullscreenChanged:)
                 forControlEvents:UIControlEventValueChanged];
+
+    _removeShuiTingSwitch = [UISwitch new];
+    _removeShuiTingSwitch.on = DYToolsBool(kDYToolsRemoveShuiTingKey);
+    [_removeShuiTingSwitch addTarget:self
+                               action:@selector(dy_removeShuiTingChanged:)
+                     forControlEvents:UIControlEventValueChanged];
+
+    _removeRelatedSearchSwitch = [UISwitch new];
+    _removeRelatedSearchSwitch.on = DYToolsBool(kDYToolsRemoveRelatedSearchKey);
+    [_removeRelatedSearchSwitch addTarget:self
+                                    action:@selector(dy_removeRelatedSearchChanged:)
+                          forControlEvents:UIControlEventValueChanged];
 }
 
 - (void)dy_close {
@@ -1158,16 +1262,28 @@ static void DYToolsRefreshLayout(void) {
     DYToolsRefreshLayout();
 }
 
+- (void)dy_removeShuiTingChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveShuiTingKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    DYToolsRefreshLayout();
+}
+
+- (void)dy_removeRelatedSearchChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveRelatedSearchKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    DYToolsRefreshLayout();
+}
+
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 1;
+    return 2;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? 1 : 0;
+    return 1;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return @"全屏功能";
+    return section == 0 ? @"界面" : @"全屏功能";
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
@@ -1192,8 +1308,19 @@ static void DYToolsRefreshLayout(void) {
     cell.detailTextLabel.text = nil;
 
     if (indexPath.section == 0) {
+        if (indexPath.row == 0) {
+            cell.textLabel.text = @"移除文案下方去汽水听";
+            cell.accessoryView = _removeShuiTingSwitch;
+        } else {
+            cell.textLabel.text = @"移除文案下相关搜索";
+            cell.accessoryView = _removeRelatedSearchSwitch;
+        }
+        cell.accessoryType = UITableViewCellAccessoryNone;
+        return cell;
+    }
+
+    if (indexPath.section == 1) {
         cell.textLabel.text = @"视频全屏";
-        cell.detailTextLabel.text = nil;
         cell.accessoryView = _fullscreenSwitch;
         cell.accessoryType = UITableViewCellAccessoryNone;
         return cell;
@@ -1244,7 +1371,7 @@ static AWESettingItemModel *DYToolsMakeEntryItem(void) {
 
     AWESettingItemModel *item = [itemClass new];
     item.identifier = @"DYToolsControlPanel";
-    item.title = @"DY-tools";
+    item.title = @"DY-tools 1.0";
     item.subTitle = @"插件控制面板";
     item.detail = @"";
     item.svgIconImageName = @"ic_settings_outlined";

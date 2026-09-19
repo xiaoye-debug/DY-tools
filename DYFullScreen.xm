@@ -1014,7 +1014,7 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
     DYFSRegisterRestore(DYFSRestoreRichManaged);
 }
 
-#pragma mark - Native Douyin Settings fullscreen switch
+#pragma mark - DY-tools control panel
 
 @interface AWESettingItemModel : NSObject
 @property(nonatomic,copy) NSString *identifier;
@@ -1043,82 +1043,252 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
 @property(nonatomic,assign) NSInteger colorStyle;
 @end
 
-static void DYFSOpenGitHub(void) {
-    NSURL *url = [NSURL URLWithString:@"https://github.com/xiaoye-debug/DY-tools"];
+static NSString *const kDYToolsGitHubURL = @"https://github.com/xiaoye-debug/DY-tools";
+
+static UIViewController *DYToolsTopViewController(void) {
+    UIWindow *window = DYFSActiveWindow();
+    UIViewController *vc = window.rootViewController;
+    while (vc.presentedViewController) vc = vc.presentedViewController;
+    return vc;
+}
+
+static void DYToolsOpenGitHub(void) {
+    NSURL *url = [NSURL URLWithString:kDYToolsGitHubURL];
     if (!url) return;
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = DYFSActiveWindow();
-        UIViewController *vc = window.rootViewController;
-        while (vc.presentedViewController) vc = vc.presentedViewController;
-
         UIApplication *app = UIApplication.sharedApplication;
         if ([app canOpenURL:url]) {
             [app openURL:url options:@{} completionHandler:^(BOOL success) {
-                NSLog(@"[DY-FullScreen] GitHub openURL success=%@", success ? @"YES" : @"NO");
+                NSLog(@"[DY-tools] GitHub openURL success=%@", success ? @"YES" : @"NO");
             }];
         }
     });
 }
 
-static AWESettingItemModel *DYFSMakeGitHubItem(void) {
+static void DYToolsShare(void) {
+    NSURL *url = [NSURL URLWithString:kDYToolsGitHubURL];
+    if (!url) return;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *presenter = DYToolsTopViewController();
+        if (!presenter) return;
+
+        UIActivityViewController *share =
+            [[UIActivityViewController alloc] initWithActivityItems:@[
+                @"DY-tools",
+                url
+            ] applicationActivities:nil];
+
+        if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+            share.popoverPresentationController.sourceView = presenter.view;
+            share.popoverPresentationController.sourceRect =
+                CGRectMake(CGRectGetMidX(presenter.view.bounds),
+                           CGRectGetMaxY(presenter.view.bounds) - 20.0,
+                           1.0, 1.0);
+        }
+
+        [presenter presentViewController:share animated:YES completion:nil];
+    });
+}
+
+static void DYToolsRefreshLayout(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = DYFSActiveWindow();
+        [window.rootViewController.view setNeedsLayout];
+        [window.rootViewController.view layoutIfNeeded];
+    });
+}
+
+@interface DYToolsControlViewController : UIViewController
+@end
+
+@implementation DYToolsControlViewController {
+    UISwitch *_fullscreenSwitch;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+
+    self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.title = @"DY-tools";
+
+    self.navigationItem.leftBarButtonItem =
+        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                                                       target:self
+                                                       action:@selector(dy_close)];
+
+    UITableView *table =
+        [[UITableView alloc] initWithFrame:CGRectZero
+                                     style:UITableViewStyleInsetGrouped];
+    table.translatesAutoresizingMaskIntoConstraints = NO;
+    table.backgroundColor = UIColor.clearColor;
+    table.dataSource = (id<UITableViewDataSource>)self;
+    table.delegate = (id<UITableViewDelegate>)self;
+    [self.view addSubview:table];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [table.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [table.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        [table.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [table.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+    ]];
+
+    _fullscreenSwitch = [UISwitch new];
+    _fullscreenSwitch.on = DYFSIsEnabled();
+    [_fullscreenSwitch addTarget:self
+                          action:@selector(dy_fullscreenChanged:)
+                forControlEvents:UIControlEventValueChanged];
+}
+
+- (void)dy_close {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)dy_fullscreenChanged:(UISwitch *)sender {
+    BOOL enabled = sender.isOn;
+
+    [[NSUserDefaults standardUserDefaults] setBool:enabled
+                                              forKey:kDYFSFullScreenEnabledKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+
+    NSLog(@"[DY-tools] fullscreen -> %@", enabled ? @"ON" : @"OFF");
+
+    if (!enabled) DYFSRunRestoreHooks();
+    DYToolsRefreshLayout();
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return 3;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if (section == 0) return 1;
+    if (section == 1) return 2;
+    return 1;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    if (section == 0) return @"全屏功能";
+    if (section == 1) return @"DY-tools";
+    return @"关于";
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    if (section == 0) return @"开启后保留原 DY-FullScreen 的全部全屏布局功能。";
+    if (section == 1) return @"后续新功能统一添加到这里。";
+    return @"DY-tools";
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView
+         cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+
+    static NSString *reuse = @"DYToolsCell";
+    UITableViewCell *cell =
+        [tableView dequeueReusableCellWithIdentifier:reuse];
+
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
+                                      reuseIdentifier:reuse];
+    }
+
+    cell.accessoryView = nil;
+    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    cell.imageView.image = nil;
+    cell.detailTextLabel.text = nil;
+
+    if (indexPath.section == 0) {
+        cell.textLabel.text = @"视频全屏";
+        cell.detailTextLabel.text = @"首页、朋友页、搜索页和他人作品铺满屏幕";
+        cell.accessoryView = _fullscreenSwitch;
+        cell.accessoryType = UITableViewCellAccessoryNone;
+        return cell;
+    }
+
+    if (indexPath.section == 1 && indexPath.row == 0) {
+        cell.textLabel.text = @"GitHub";
+        cell.detailTextLabel.text = kDYToolsGitHubURL;
+        cell.imageView.image = [UIImage systemImageNamed:@"link"];
+        return cell;
+    }
+
+    if (indexPath.section == 1 && indexPath.row == 1) {
+        cell.textLabel.text = @"分享 DY-tools";
+        cell.detailTextLabel.text = @"分享插件 GitHub 地址";
+        cell.imageView.image = [UIImage systemImageNamed:@"square.and.arrow.up"];
+        return cell;
+    }
+
+    cell.textLabel.text = @"在浏览器打开";
+    cell.detailTextLabel.text = @"打开 DY-tools GitHub 网页";
+    cell.imageView.image = [UIImage systemImageNamed:@"safari"];
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView
+didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+
+    if (indexPath.section == 1 && indexPath.row == 0) {
+        DYToolsOpenGitHub();
+        return;
+    }
+
+    if (indexPath.section == 1 && indexPath.row == 1) {
+        DYToolsShare();
+        return;
+    }
+
+    if (indexPath.section == 2 && indexPath.row == 0) {
+        DYToolsOpenGitHub();
+    }
+}
+
+@end
+
+static void DYToolsPresentControlPanel(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *presenter = DYToolsTopViewController();
+        if (!presenter) return;
+
+        if ([presenter isKindOfClass:[DYToolsControlViewController class]]) return;
+
+        DYToolsControlViewController *panel = [DYToolsControlViewController new];
+        UINavigationController *nav =
+            [[UINavigationController alloc] initWithRootViewController:panel];
+
+        nav.modalPresentationStyle = UIModalPresentationPageSheet;
+
+        if (@available(iOS 15.0, *)) {
+            UISheetPresentationController *sheet = nav.sheetPresentationController;
+            sheet.detents = @[
+                [UISheetPresentationControllerDetent mediumDetent],
+                [UISheetPresentationControllerDetent largeDetent]
+            ];
+            sheet.prefersGrabberVisible = YES;
+        }
+
+        [presenter presentViewController:nav animated:YES completion:nil];
+    });
+}
+
+static AWESettingItemModel *DYToolsMakeEntryItem(void) {
     Class itemClass = NSClassFromString(@"AWESettingItemModel");
     if (!itemClass) return nil;
 
     AWESettingItemModel *item = [itemClass new];
-    item.identifier = @"DYFSOpenSource";
-    item.title = @"https://github.com/xiaoye-debug/DY-tools";
-    item.subTitle = @"";
+    item.identifier = @"DYToolsControlPanel";
+    item.title = @"DY-tools";
+    item.subTitle = @"插件控制面板";
     item.detail = @"";
-    item.svgIconImageName = @"ic_share_outlined";
+    item.svgIconImageName = @"ic_settings_outlined";
     item.cellType = 26;
     item.colorStyle = 0;
     item.isEnable = YES;
     item.isSwitchOn = NO;
     item.cellTappedBlock = ^{
-        DYFSOpenGitHub();
-    };
-    return item;
-}
-
-static AWESettingItemModel *DYFSMakeNativeFullscreenItem(void) {
-    Class itemClass = NSClassFromString(@"AWESettingItemModel");
-    if (!itemClass) return nil;
-
-    AWESettingItemModel *item = [itemClass new];
-    item.identifier = kDYFSFullScreenEnabledKey;
-    item.title = @"视频全屏";
-    item.subTitle = @"首页、朋友页、搜索页和他人作品铺满屏幕";
-    item.detail = @"";
-    item.svgIconImageName = @"ic_fullscreen_outlined_16";
-    item.cellType = 6;
-    item.colorStyle = 0;
-    item.isEnable = YES;
-    item.isSwitchOn = DYFSIsEnabled();
-
-    __weak AWESettingItemModel *weakItem = item;
-    item.switchChangedBlock = ^{
-        AWESettingItemModel *strongItem = weakItem;
-        if (!strongItem) return;
-
-        BOOL enabled = !strongItem.isSwitchOn;
-        strongItem.isSwitchOn = enabled;
-
-        [[NSUserDefaults standardUserDefaults] setBool:enabled
-                                                  forKey:kDYFSFullScreenEnabledKey];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-
-        NSLog(@"[DY-FullScreen] switchChanged -> %@", enabled ? @"ON" : @"OFF");
-
-        if (!enabled) {
-            DYFSRunRestoreHooks();
-        }
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIWindow *window = DYFSActiveWindow();
-            [window.rootViewController.view setNeedsLayout];
-            [window.rootViewController.view layoutIfNeeded];
-        });
+        DYToolsPresentControlPanel();
     };
     return item;
 }
@@ -1134,21 +1304,20 @@ static AWESettingItemModel *DYFSMakeNativeFullscreenItem(void) {
         for (id item in items) {
             NSString *identifier = nil;
             @try { identifier = [item valueForKey:@"identifier"]; } @catch (__unused NSException *e) {}
-            if ([identifier isEqualToString:kDYFSFullScreenEnabledKey] || [identifier isEqualToString:@"DYFSNativeFullScreen"]) return sections;
+            if ([identifier isEqualToString:@"DYToolsControlPanel"]) return sections;
         }
     }
 
-    AWESettingItemModel *item = DYFSMakeNativeFullscreenItem();
-    AWESettingItemModel *githubItem = DYFSMakeGitHubItem();
+    AWESettingItemModel *entry = DYToolsMakeEntryItem();
     Class sectionClass = NSClassFromString(@"AWESettingSectionModel");
-    if (!item || !sectionClass) return sections;
+    if (!entry || !sectionClass) return sections;
 
     AWESettingSectionModel *section = [sectionClass new];
-    section.sectionHeaderTitle = @"DY-FullScreen";
+    section.sectionHeaderTitle = @"DY-tools";
     section.sectionHeaderHeight = 40.0;
     section.sectionFooterTitle = @"";
     section.type = 0;
-    section.itemArray = githubItem ? @[item, githubItem] : @[item];
+    section.itemArray = @[entry];
 
     NSMutableArray *result = [sections mutableCopy];
     if (!result) result = [NSMutableArray array];

@@ -2,6 +2,30 @@
 
 #pragma mark - DYYY UIView class declarations
 
+@interface ACCStickerContainerView : UIView
+@end
+
+@interface BDXWebView : UIView
+@end
+
+@interface IESLiveFeedDrawerEntranceView : UIView
+@end
+
+@interface IESLiveButton : UIView
+@end
+
+@interface AWELiveFlowAlertView : UIView
+@end
+
+@interface AWEPlayInteractionUserAvatarView : UIView
+@end
+
+@interface AWENormalModeTabBarBadgeContainerView : UIView
+@end
+
+@interface AWENormalModeTabBarFeedView : UIView
+@end
+
 @interface AWEFeedLiveTabRevisitControlView : UIView
 @end
 

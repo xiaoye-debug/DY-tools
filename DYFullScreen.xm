@@ -3966,11 +3966,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 %hook AWETeenModeSimpleAlertView
 - (BOOL)show { if (DYToolsBool(@"DYYYHideTeenMode")) return NO; return %orig; }
 %end
-%hook AWEVersionUpdateManager
-- (void)startVersionUpdateWorkflow:(id)arg1 completion:(id)arg2 { %orig; }
-- (id)workflow { if(DYToolsBool(@"DYYYNoUpdates")) return nil; return %orig; }
-- (id)badgeModule { if(DYToolsBool(@"DYYYNoUpdates")) return nil; return %orig; }
-%end
+// AWEVersionUpdateManager 的 startVersionUpdateWorkflow:completion: 在 40.x 的 Logos 签名不稳定，暂不 Hook，避免预处理器 %orig 参数结构错误。
 %hook AWEAwemeStatusModel
 - (void)setListenVideoStatus:(NSInteger)status { if(status==1&&DYToolsBool(@"DYYYEnableBackgroundListen"))status=2; %orig(status); }
 %end

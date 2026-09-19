@@ -11,6 +11,7 @@ static NSString *const kDYFSFullScreenEnabledKey = @"DYYYEnableFullScreen";
 
 static NSString *const kDYToolsRemoveShuiTingKey = @"DYToolsRemoveShuiTing";
 static NSString *const kDYToolsRemoveRelatedSearchKey = @"DYToolsRemoveRelatedSearch";
+static NSString *const kDYToolsRemoveHotspotKey = @"DYToolsRemoveHotspot";
 
 
 BOOL DYFSIsEnabled(void) {
@@ -24,6 +25,9 @@ BOOL DYFSIsEnabled(void) {
     }
     if ([defaults objectForKey:kDYToolsRemoveRelatedSearchKey] == nil) {
         [defaults setBool:NO forKey:kDYToolsRemoveRelatedSearchKey];
+    }
+    if ([defaults objectForKey:kDYToolsRemoveHotspotKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsRemoveHotspotKey];
     }
     [defaults synchronize];
     return [defaults boolForKey:kDYFSFullScreenEnabledKey];
@@ -1027,15 +1031,16 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
 
 #pragma mark - DY-tools UI features
 
-// 这两个功能不再使用 UILabel/UIButton 全局文字扫描。
-// 直接迁移已经在 DYKiller / DYYY 中验证过的抖音业务 Hook。
+// 直接迁移 DYYY / DYKiller 中已经验证过的业务 Hook，不做文字扫描。
 
 static BOOL DYToolsBool(NSString *key) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];
 }
 
+#pragma mark - 去汽水听
+
 @interface AWEPlayInteractionViewController (DYToolsMusicInfo)
-- (BOOL)hideMusicInfo;
+@property(nonatomic,assign) BOOL hideMusicInfo;
 @end
 
 %hook AWEPlayInteractionViewController
@@ -1049,58 +1054,77 @@ static BOOL DYToolsBool(NSString *key) {
 
 %end
 
-// 抖音暂停后显示的“相关搜索/相关词”业务组件。
-// 直接采用已验证的 AWEFeedPauseRelatedWordComponent Hook，
-// 不依赖 UILabel 文本，也不会误伤 DY-tools 自己的控制面板。
+#pragma mark - 文案下方相关搜索
 
-@interface AWEFeedPauseVideoRelatedWordView : UIView
+// DYYY 的实际实现是直接处理 AWEPlayInteractionSearchAnchorView。
+// 这比之前错误迁移的暂停相关词组件更准确，对应视频文案下方的搜索入口。
+
+@interface AWEPlayInteractionSearchAnchorView : UIView
 @end
 
-@interface AWEFeedPauseRelatedWordComponent : NSObject
-@property(nonatomic,strong) AWEFeedPauseVideoRelatedWordView *relatedView;
-- (id)updateViewWithModel:(id)arg0;
-- (id)pauseContentWithModel:(id)arg0;
-- (id)recommendsWords;
-- (void)showRelatedRecommendPanelControllerWithSelectedText:(id)arg0;
-- (void)setupUI;
-@end
+%hook AWEPlayInteractionSearchAnchorView
 
-%hook AWEFeedPauseRelatedWordComponent
-
-- (id)updateViewWithModel:(id)arg0 {
+- (id)init {
     if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
         return nil;
     }
     return %orig;
 }
 
-- (id)pauseContentWithModel:(id)arg0 {
+- (void)layoutSubviews {
     if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
-        return nil;
-    }
-    return %orig;
-}
-
-- (id)recommendsWords {
-    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
-        return nil;
-    }
-    return %orig;
-}
-
-- (void)showRelatedRecommendPanelControllerWithSelectedText:(id)arg0 {
-    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
+        [self removeFromSuperview];
         return;
     }
     %orig;
 }
 
-- (void)setupUI {
+%end
+
+#pragma mark - 视频页热点提示
+
+// DYYY 使用以下热点视图/底部热点提示视图参与热点 UI。
+// 同时处理数据入口和实际 View，避免只隐藏其中一层导致空白占位。
+
+@interface AWEHotSpotBlurView : UIView
+@end
+
+@interface AWETemplateHotspotView : UIView
+@end
+
+@interface AWENewHotSpotBottomBarView : UIView
+@end
+
+%hook AWEHotSpotBlurView
+
+- (void)layoutSubviews {
     %orig;
-    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
-        if (self.relatedView) {
-            self.relatedView.hidden = YES;
-        }
+    if (DYToolsBool(kDYToolsRemoveHotspotKey)) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
+%hook AWETemplateHotspotView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(kDYToolsRemoveHotspotKey)) {
+        [self removeFromSuperview];
+        return;
+    }
+}
+
+%end
+
+%hook AWENewHotSpotBottomBarView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(kDYToolsRemoveHotspotKey)) {
+        [self removeFromSuperview];
+        return;
     }
 }
 
@@ -1150,6 +1174,7 @@ static UIViewController *DYToolsTopViewController(void) {
     UISwitch *_fullscreenSwitch;
     UISwitch *_removeShuiTingSwitch;
     UISwitch *_removeRelatedSearchSwitch;
+    UISwitch *_removeHotspotSwitch;
 }
 
 - (void)viewDidLoad {
@@ -1193,6 +1218,11 @@ static UIViewController *DYToolsTopViewController(void) {
     _removeRelatedSearchSwitch.on = DYToolsBool(kDYToolsRemoveRelatedSearchKey);
     [_removeRelatedSearchSwitch addTarget:self action:@selector(dy_removeRelatedSearchChanged:)
                     forControlEvents:UIControlEventValueChanged];
+
+    _removeHotspotSwitch = [UISwitch new];
+    _removeHotspotSwitch.on = DYToolsBool(kDYToolsRemoveHotspotKey);
+    [_removeHotspotSwitch addTarget:self action:@selector(dy_removeHotspotChanged:)
+                    forControlEvents:UIControlEventValueChanged];
 }
 
 - (void)dy_close {
@@ -1216,12 +1246,17 @@ static UIViewController *DYToolsTopViewController(void) {
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
+- (void)dy_removeHotspotChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveHotspotKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     return 2;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? 1 : 2;
+    return section == 0 ? 1 : 3;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
@@ -1258,9 +1293,12 @@ static UIViewController *DYToolsTopViewController(void) {
         if (indexPath.row == 0) {
             cell.textLabel.text = @"移除文案下方去汽水听";
             cell.accessoryView = _removeShuiTingSwitch;
-        } else {
+        } else if (indexPath.row == 1) {
             cell.textLabel.text = @"移除文案下相关搜索";
             cell.accessoryView = _removeRelatedSearchSwitch;
+        } else {
+            cell.textLabel.text = @"移除文案下方热点栏";
+            cell.accessoryView = _removeHotspotSwitch;
         }
         return cell;
     }

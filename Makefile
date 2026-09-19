@@ -7,7 +7,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME := DYTools
 DYTools_FILES := DYFullScreen.xm Sources/DYBasicFeatures.xm
-DYTools_CFLAGS := -fobjc-arc -w -ISources
+DYTools_CFLAGS := -fobjc-arc -w -ISources -include Sources/DYFloatSpeedButton.h
 DYTools_FRAMEWORKS := UIKit Foundation QuartzCore
 
 include $(THEOS_MAKE_PATH)/tweak.mk

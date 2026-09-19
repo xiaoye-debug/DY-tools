@@ -3672,6 +3672,19 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     NSArray *_globalSearchResults;
 }
 
+- (NSArray *)dy_buildGlobalSearchEntries {
+    return @[
+        @{@"title":@"视频全屏", @"key":kDYFSFullScreenEnabledKey, @"category":@"全屏", @"type":@"main"},
+        @{@"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey, @"category":@"视频设置", @"type":@"video"},
+        @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey, @"category":@"视频设置", @"type":@"video"},
+        @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey, @"category":@"视频设置", @"type":@"video"},
+        @{@"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey, @"category":@"视频设置", @"type":@"video"},
+        @{@"title":@"移除视频位置", @"key":kDYToolsHideLocationKey, @"category":@"视频设置", @"type":@"video"},
+        @{@"title":@"去除进入直播间提示", @"key":kDYToolsHideEnterLiveKey, @"category":@"直播与互动", @"type":@"main"},
+        @{@"title":@"禁止自动进入直播间", @"key":kDYToolsDisableAutoEnterLiveKey, @"category":@"直播与互动", @"type":@"main"}
+    ];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
 
@@ -3963,17 +3976,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 
 %hook AWEOriginalAdModel
 - (instancetype)init { if (DYToolsBool(@"DYYYNoAds")) return nil; return %orig; }
-- (instancetype)initWithDictionary:(id)dict error:(NSError **)error {
-    if (DYToolsBool(@"DYYYNoAds")) return nil;
-    return %orig(dict, error);
-}
-%end
-%hook AWEGeneralSearchModel
-- (instancetype)initWithDictionary:(id)dict error:(NSError **)error {
- id obj=%orig;
- if (DYToolsBool(@"DYYYNoAds") && [[obj valueForKeyPath:@"commonDynamicPatchModel.is_ad"] integerValue]==1) return nil;
- return obj;
-}
 %end
 %hook AWEAwesomeSplashFeedCellOldAccessoryView
 - (id)ddExtraView { if (DYToolsBool(@"DYYYNoAds")) return nil; return %orig; }

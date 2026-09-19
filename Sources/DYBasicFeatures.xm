@@ -235,3 +235,109 @@
 }
 
 %end
+
+
+#pragma mark - 自动播放
+
+/*
+ * DYYY 原版通过 AutoPlay group 动态启用以下几个入口。
+ * 这里改成独立文件内按开关判断，避免跨 Logos 文件调用 %init(group)。
+ */
+@interface AWEAwemeDetailTableViewController : UIViewController
+- (BOOL)hasIphoneAutoPlaySwitch;
+@end
+
+%hook AWEAwemeDetailTableViewController
+
+- (BOOL)hasIphoneAutoPlaySwitch {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableAutoPlay"]) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+@interface AWEAwemeDetailContainerPlayControlConfig : NSObject
+- (BOOL)enableUserProfilePostAutoPlay;
+@end
+
+%hook AWEAwemeDetailContainerPlayControlConfig
+
+- (BOOL)enableUserProfilePostAutoPlay {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableAutoPlay"]) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+@interface AWEFeedIPhoneAutoPlayManager : NSObject
+- (BOOL)isAutoPlayOpen;
+- (BOOL)getFeedIphoneAutoPlayState;
+@end
+
+%hook AWEFeedIPhoneAutoPlayManager
+
+- (BOOL)isAutoPlayOpen {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableAutoPlay"]) {
+        return YES;
+    }
+    return %orig;
+}
+
+- (BOOL)getFeedIphoneAutoPlayState {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableAutoPlay"]) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+@interface AWEFeedModuleService : NSObject
+- (BOOL)getFeedIphoneAutoPlayState;
+@end
+
+%hook AWEFeedModuleService
+
+- (BOOL)getFeedIphoneAutoPlayState {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableAutoPlay"]) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+#pragma mark - 屏蔽广告
+
+@interface AWEAwemeModel : NSObject
+@property(nonatomic, assign) BOOL isAds;
+@end
+
+%hook AWEAwemeModel
+
+- (id)initWithDictionary:(id)arg1 error:(id *)arg2 {
+    id result = %orig;
+
+    if (result &&
+        [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYNoAds"]) {
+        BOOL isAd = NO;
+
+        @try {
+            isAd = [(AWEAwemeModel *)result isAds];
+        } @catch (__unused NSException *e) {
+            isAd = NO;
+        }
+
+        if (isAd) {
+            return nil;
+        }
+    }
+
+    return result;
+}
+
+%end

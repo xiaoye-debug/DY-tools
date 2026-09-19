@@ -3668,6 +3668,56 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 @end
 
 
+
+@interface DYToolsSearchResultsViewController : UITableViewController
+@property(nonatomic,copy) NSArray *items;
+@property(nonatomic,copy) void (^selectionHandler)(NSDictionary *item);
+@end
+
+@implementation DYToolsSearchResultsViewController
+
+- (instancetype)init {
+    self = [super initWithStyle:UITableViewStyleInsetGrouped];
+    if (self) _items = @[];
+    return self;
+}
+
+- (void)setItems:(NSArray *)items {
+    _items = [items copy] ?: @[];
+    if (self.isViewLoaded) [self.tableView reloadData];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return _items.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuse = @"DYToolsSearchResultCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
+                                      reuseIdentifier:reuse];
+    }
+    NSDictionary *item = _items[indexPath.row];
+    cell.textLabel.text = item[@"title"];
+    cell.textLabel.font = [UIFont systemFontOfSize:16.0];
+    cell.textLabel.textColor = UIColor.labelColor;
+    cell.detailTextLabel.text = item[@"category"];
+    cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
+    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (indexPath.row < (NSInteger)_items.count && self.selectionHandler) {
+        self.selectionHandler(_items[indexPath.row]);
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+}
+@end
+
 @interface DYToolsControlViewController : UIViewController <UISearchResultsUpdating>
 @end
 
@@ -3682,22 +3732,52 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     UISwitch *_hideLocationSwitch;
     UITableView *_dyTableView;
     UISearchController *_globalSearchController;
+    DYToolsSearchResultsViewController *_globalSearchResultsController;
     NSArray *_globalSearchEntries;
     NSArray *_globalSearchResults;
 }
 
 - (NSArray *)dy_buildGlobalSearchEntries {
     return @[
-        @{@"title":@"视频全屏", @"key":kDYFSFullScreenEnabledKey, @"category":@"全屏", @"type":@"main"},
-        @{@"title":@"快捷倍速悬浮按钮", @"key":@"DYYYEnableFloatSpeedButton", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"禁止直播入口自动隐藏", @"key":@"DYYYDisableAutoHideLive", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除视频位置", @"key":kDYToolsHideLocationKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"去除进入直播间提示", @"key":kDYToolsHideEnterLiveKey, @"category":@"直播与互动", @"type":@"main"},
-        @{@"title":@"禁止自动进入直播间", @"key":kDYToolsDisableAutoEnterLiveKey, @"category":@"直播与互动", @"type":@"main"}
+        @{"title":@"基本设置", @"key":@"__DYTOOLS_BASIC_CATEGORY__", @"category":@"设置", @"type":@"basicCategory"},
+        @{"title":@"全屏", @"key":@"__DYTOOLS_FULLSCREEN_CATEGORY__", @"category":@"全屏", @"type":@"mainCategory"},
+        @{"title":@"视频界面", @"key":@"__DYTOOLS_VIDEO_CATEGORY__", @"category":@"视频界面", @"type":@"videoCategory"},
+        @{"title":@"直播与互动", @"key":@"__DYTOOLS_LIVE_CATEGORY__", @"category":@"直播与互动", @"type":@"mainCategory"},
+
+        @{"title":@"视频全屏", @"key":kDYFSFullScreenEnabledKey, @"category":@"全屏", @"type":@"main"},
+
+        @{"title":@"快捷倍速悬浮按钮", @"key":@"DYYYEnableFloatSpeedButton", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"显示进度时长", @"key":@"DYYYShowScheduleDisplay", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"设置默认倍速", @"key":@"DYYYDefaultSpeed", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"设置长按倍速", @"key":@"DYYYLongPressSpeed", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"上下控制倍速", @"key":@"DYYYEnableLongPressSpeedGesture", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"自动恢复默认倍速", @"key":@"DYYYAutoRestoreSpeed", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"启用自动播放", @"key":@"DYYYEnableAutoPlay", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"禁用双击视频点赞", @"key":@"DYYYDisableDoubleTapLike", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"禁用点击首页刷新", @"key":@"DYYYDisableHomeRefresh", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"启用屏蔽广告", @"key":@"DYYYNoAds", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"显示开播时长", @"key":@"DYYYShowLiveDuration", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"禁用访客记录上传", @"key":@"DYYYDisableProfileVisitRecordUpload", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"禁用作品浏览记录上传", @"key":@"DYYYDisableFeedHistoryUpload", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"小程序跳广告", @"key":@"DYYYMiniProgramSkipAd", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"评论具体时间", @"key":@"DYYYCommentExactTime", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"屏蔽灵动岛抖音播放信息", @"key":@"DYYYDisableFeedNowPlayingInfo", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"提高视频画质", @"key":@"DYYYEnableVideoHighestQuality", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"禁用直播PCDN功能", @"key":@"DYYYDisableLivePCDN", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"隐藏系统顶栏", @"key":@"DYYYHideStatusbar", @"category":@"基本设置", @"type":@"basic"},
+        @{"title":@"评论区毛玻璃", @"key":@"DYYYEnableCommentBlur", @"category":@"基本设置", @"type":@"basic"},
+
+        @{"title":@"视频设置", @"key":@"__DYTOOLS_VIDEO_SETTINGS__", @"category":@"视频界面", @"type":@"videoCategory"},
+        @{"title":@"移除顶栏", @"key":@"__DYTOOLS_TOPBAR__", @"category":@"视频界面", @"type":@"topCategory"},
+        @{"title":@"移除底栏", @"key":@"__DYTOOLS_BOTTOMBAR__", @"category":@"视频界面", @"type":@"bottomCategory"},
+        @{"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey, @"category":@"视频设置", @"type":@"video"},
+        @{"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey, @"category":@"视频设置", @"type":@"video"},
+        @{"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey, @"category":@"视频设置", @"type":@"video"},
+        @{"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey, @"category":@"视频设置", @"type":@"video"},
+        @{"title":@"移除视频位置", @"key":@"DYYYHideLocation", @"category":@"视频设置", @"type":@"video"},
+
+        @{"title":@"去除进入直播间提示", @"key":kDYToolsHideEnterLiveKey, @"category":@"直播与互动", @"type":@"main"},
+        @{"title":@"禁止自动进入直播间", @"key":kDYToolsDisableAutoEnterLiveKey, @"category":@"直播与互动", @"type":@"main"}
     ];
 }
 
@@ -3710,10 +3790,21 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
     _globalSearchEntries = [self dy_buildGlobalSearchEntries];
     _globalSearchResults = @[];
-    _globalSearchController = [[UISearchController alloc] initWithSearchResultsController:nil];
+    _globalSearchResultsController = [DYToolsSearchResultsViewController new];
+    __weak typeof(self) weakSelf = self;
+    _globalSearchResultsController.selectionHandler = ^(NSDictionary *item) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (self) [self dy_openGlobalSearchItem:item];
+    };
+
+    _globalSearchController = [[UISearchController alloc] initWithSearchResultsController:_globalSearchResultsController];
     _globalSearchController.searchResultsUpdater = self;
     _globalSearchController.obscuresBackgroundDuringPresentation = NO;
+    _globalSearchController.hidesNavigationBarDuringPresentation = NO;
+    _globalSearchController.automaticallyShowsCancelButton = YES;
     _globalSearchController.searchBar.placeholder = @"搜索插件功能";
+    _globalSearchController.searchBar.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    _globalSearchController.searchBar.returnKeyType = UIReturnKeyDone;
     self.navigationItem.searchController = _globalSearchController;
     self.navigationItem.hidesSearchBarWhenScrolling = NO;
     self.definesPresentationContext = YES;
@@ -3851,7 +3942,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    if (_globalSearchController.isActive) return _globalSearchResults.count;
     switch (section) {
         case 0: return 1; // Basic
         case 1: return 1; // Fullscreen
@@ -3914,15 +4004,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     cell.textLabel.numberOfLines = 1;
 
     UISwitch *sw = nil;
-
-    if (_globalSearchController.isActive) {
-        NSDictionary *item = _globalSearchResults[indexPath.row];
-        cell.textLabel.text = item[@"title"];
-        cell.detailTextLabel.text = item[@"category"];
-        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        cell.selectionStyle = UITableViewCellSelectionStyleDefault;
-        return cell;
-    }
 
     if (indexPath.section == 0) {
         cell.textLabel.text = @"基本设置";
@@ -3991,7 +4072,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         _globalSearchResults = [results copy];
     }
 
-    [_dyTableView reloadData];
+    _globalSearchResultsController.items = _globalSearchResults;
 }
 
 - (void)dy_openGlobalSearchItem:(NSDictionary *)item {
@@ -4000,13 +4081,40 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     NSString *type = item[@"type"];
     NSString *key = item[@"key"];
 
-    [_globalSearchController.searchBar resignFirstResponder];
-    _globalSearchController.active = NO;
-
     if ([type isEqualToString:@"basic"]) {
         [self.navigationController pushViewController:
             [[DYToolsBasicSettingsViewController alloc] initWithFocusKey:key]
                                             animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"basicCategory"]) {
+        [self.navigationController pushViewController:[DYToolsBasicSettingsViewController new] animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"videoCategory"]) {
+        [self.navigationController pushViewController:[DYToolsVideoSettingsViewController new] animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"topCategory"]) {
+        [self.navigationController pushViewController:[DYToolsTopBarViewController new] animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"bottomCategory"]) {
+        [self.navigationController pushViewController:[DYToolsBottomBarViewController new] animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"mainCategory"]) {
+        if ([key isEqualToString:@"__DYTOOLS_FULLSCREEN_CATEGORY__"]) {
+            [_dyTableView scrollToRowAtIndexPath:
+                [NSIndexPath indexPathForRow:0 inSection:1]
+                                atScrollPosition:UITableViewScrollPositionMiddle
+                                        animated:YES];
+        }
         return;
     }
 
@@ -4050,13 +4158,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (_globalSearchController.isActive) {
-        if (indexPath.row < (NSInteger)_globalSearchResults.count) {
-            [self dy_openGlobalSearchItem:_globalSearchResults[indexPath.row]];
-        }
-        [tableView deselectRowAtIndexPath:indexPath animated:NO];
-        return;
-    }
     if(indexPath.section==0){ [self.navigationController pushViewController:[DYToolsBasicSettingsViewController new] animated:YES]; return; }
     if(indexPath.section==2&&indexPath.row==0){ [self.navigationController pushViewController:[DYToolsVideoSettingsViewController new] animated:YES]; return; }
     if(indexPath.section==2&&indexPath.row==1){ [self.navigationController pushViewController:[DYToolsTopBarViewController new] animated:YES]; return; }

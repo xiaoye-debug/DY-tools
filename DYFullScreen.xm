@@ -3968,8 +3968,10 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 %end
 // AWEVersionUpdateManager 的 startVersionUpdateWorkflow:completion: 在 40.x 的 Logos 签名不稳定，暂不 Hook，避免预处理器 %orig 参数结构错误。
 %hook AWEAwemeStatusModel
-- (void)setListenVideoStatus:(NSInteger)status { if(status==1&&DYToolsBool(@"DYYYEnableBackgroundListen"))status=2; %orig(status); }
-%end
+- (void)setListenVideoStatus:(NSInteger)status {
+    if(status==1&&DYToolsBool(@"DYYYEnableBackgroundListen"))status=2;
+    %orig;
+}
 %hook AWEFeedIPhoneAutoPlayManager
 - (BOOL)isAutoPlayOpen { if(DYToolsBool(@"DYYYEnableAutoPlay"))return YES; return %orig; }
 %end

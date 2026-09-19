@@ -3973,6 +3973,182 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 
 #pragma mark - DYYY Basic Feature Hooks
 
+// ===== DYYY 基本功能迁移：访客记录上传 =====
+%hook AWEProfileUserDetailComponent
+- (void)reportUserDetailVisitIfNeeded:(id)user {
+    if (DYToolsBool(@"DYYYDisableProfileVisitRecordUpload")) {
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEProfileRecordHelper
++ (void)postProfileRecordWithParams:(id)params completionBlock:(id)completionBlock {
+    if (DYToolsBool(@"DYYYDisableProfileVisitRecordUpload")) {
+        return;
+    }
+    %orig;
+}
+%end
+
+// ===== DYYY 基本功能迁移：系统灵动岛 / Now Playing 信息 =====
+@interface MPNowPlayingInfoCenter : NSObject
+@property(nonatomic, copy) NSDictionary *nowPlayingInfo;
++ (instancetype)defaultCenter;
+- (void)setPlaybackState:(NSInteger)playbackState;
+@end
+
+static BOOL DYToolsClearingNowPlayingInfo = NO;
+static CFTimeInterval DYToolsLastNowPlayingClearTime = 0.0;
+
+static void DYToolsClearNowPlayingInfo(void) {
+    if (!DYToolsBool(@"DYYYDisableFeedNowPlayingInfo") || DYToolsClearingNowPlayingInfo) {
+        return;
+    }
+
+    CFTimeInterval now = CFAbsoluteTimeGetCurrent();
+    if (now - DYToolsLastNowPlayingClearTime < 0.25) {
+        return;
+    }
+    DYToolsLastNowPlayingClearTime = now;
+
+    Class cls = NSClassFromString(@"MPNowPlayingInfoCenter");
+    if (!cls || ![cls respondsToSelector:@selector(defaultCenter)]) {
+        return;
+    }
+
+    id center = ((id (*)(Class, SEL))objc_msgSend)(cls, @selector(defaultCenter));
+    if (!center) return;
+
+    DYToolsClearingNowPlayingInfo = YES;
+    @try {
+        if ([center respondsToSelector:@selector(setNowPlayingInfo:)]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(
+                center, @selector(setNowPlayingInfo:), nil);
+        }
+        SEL stateSel = NSSelectorFromString(@"setPlaybackState:");
+        if ([center respondsToSelector:stateSel]) {
+            ((void (*)(id, SEL, NSInteger))objc_msgSend)(center, stateSel, 0);
+        }
+    } @catch (__unused NSException *exception) {
+    }
+    DYToolsClearingNowPlayingInfo = NO;
+}
+
+%hook AWEAwemeBackgroundPlayModule
+- (id)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return nil;
+    }
+    return %orig;
+}
+- (void)refreshNowPlayingInfoIfNeeded {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)updateNowPlayingInfoPlayback {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEFeedBackgroundPlayManager
+- (id)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return nil;
+    }
+    return %orig;
+}
+- (void)setNowPlayingInfo:(id)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)resetNowPlayingInfo:(id)model {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)refreshNowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)refreshNowPlayingInfoIsForce:(BOOL)isForce {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)updateNowPlayingInfoPlayback {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWENowPlayingInfoCenter
+- (void)becomePlayingPlayer:(id)player {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)setNowPlayingInfo:(id)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)refreshNowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook MPNowPlayingInfoCenter
+- (void)setNowPlayingInfo:(NSDictionary *)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo") && !DYToolsClearingNowPlayingInfo) {
+        %orig(nil);
+        return;
+    }
+    %orig;
+}
+- (void)setPlaybackState:(NSInteger)playbackState {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo") && !DYToolsClearingNowPlayingInfo) {
+        %orig(0);
+        return;
+    }
+    %orig;
+}
+
+%end
+
+
+
 // 40.x 不稳定 Hook 暂停迁移：先保证主工程稳定编译。
 // 访客记录上传与直播时长暂不加入，后续根据 40.4.0 实际运行时类重新迁移。
 

@@ -12,6 +12,10 @@ static NSString *const kDYFSFullScreenEnabledKey = @"DYYYEnableFullScreen";
 static NSString *const kDYToolsRemoveShuiTingKey = @"DYToolsRemoveShuiTing";
 static NSString *const kDYToolsRemoveRelatedSearchKey = @"DYToolsRemoveRelatedSearch";
 static NSString *const kDYToolsRemoveHotspotKey = @"DYToolsRemoveHotspot";
+static NSString *const kDYToolsHideEnterLiveKey = @"DYToolsHideEnterLive";
+static NSString *const kDYToolsDisableAutoEnterLiveKey = @"DYToolsDisableAutoEnterLive";
+static NSString *const kDYToolsHideSearchSameKey = @"DYToolsHideSearchSame";
+static NSString *const kDYToolsHideLocationKey = @"DYToolsHideLocation";
 
 
 BOOL DYFSIsEnabled(void) {
@@ -28,6 +32,18 @@ BOOL DYFSIsEnabled(void) {
     }
     if ([defaults objectForKey:kDYToolsRemoveHotspotKey] == nil) {
         [defaults setBool:NO forKey:kDYToolsRemoveHotspotKey];
+    }
+    if ([defaults objectForKey:kDYToolsHideEnterLiveKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsHideEnterLiveKey];
+    }
+    if ([defaults objectForKey:kDYToolsDisableAutoEnterLiveKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsDisableAutoEnterLiveKey];
+    }
+    if ([defaults objectForKey:kDYToolsHideSearchSameKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsHideSearchSameKey];
+    }
+    if ([defaults objectForKey:kDYToolsHideLocationKey] == nil) {
+        [defaults setBool:NO forKey:kDYToolsHideLocationKey];
     }
     [defaults synchronize];
     return [defaults boolForKey:kDYFSFullScreenEnabledKey];
@@ -1130,6 +1146,85 @@ static BOOL DYToolsBool(NSString *key) {
 
 %end
 
+#pragma mark - 直播间 / 拍同款 / 位置栏
+
+// DYYY 已验证：隐藏视频流中的“点击进入直播间”提示。
+@interface AWELiveFeedStatusLabel : UILabel
+@end
+
+%hook AWELiveFeedStatusLabel
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (!DYToolsBool(kDYToolsHideEnterLiveKey)) {
+        return;
+    }
+
+    UIView *parentView = self.superview;
+    UIView *grandparentView = parentView.superview;
+    if (grandparentView) {
+        grandparentView.hidden = YES;
+        grandparentView.userInteractionEnabled = NO;
+    } else if (parentView) {
+        parentView.hidden = YES;
+        parentView.userInteractionEnabled = NO;
+    }
+}
+
+%end
+
+// DYYY 已验证：禁止顶栏直播自动进入直播间。
+@interface AWELiveGuideElement : UIView
+@end
+
+%hook AWELiveGuideElement
+
+- (BOOL)enableAutoEnterRoom {
+    if (DYToolsBool(kDYToolsDisableAutoEnterLiveKey)) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+// DYYY 的“隐藏搜索同款”实际处理 ACCStickerContainerView。
+// 这里对应视频页“拍同款”入口，而不是文字扫描。
+@interface ACCStickerContainerView : UIView
+@end
+
+%hook ACCStickerContainerView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(kDYToolsHideSearchSameKey)) {
+        [self removeFromSuperview];
+        return;
+    }
+}
+
+%end
+
+// DYYY 的“隐藏视频定位”实际处理 AWEMarkView。
+@interface AWEMarkView : UIView
+@property(nonatomic,readonly) UILabel *markLabel;
+@end
+
+%hook AWEMarkView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(kDYToolsHideLocationKey)) {
+        self.hidden = YES;
+        return;
+    }
+}
+
+%end
+
 #pragma mark - DY-tools control panel
 
 @interface AWESettingItemModel : NSObject
@@ -1175,6 +1270,10 @@ static UIViewController *DYToolsTopViewController(void) {
     UISwitch *_removeShuiTingSwitch;
     UISwitch *_removeRelatedSearchSwitch;
     UISwitch *_removeHotspotSwitch;
+    UISwitch *_hideEnterLiveSwitch;
+    UISwitch *_disableAutoEnterLiveSwitch;
+    UISwitch *_hideSearchSameSwitch;
+    UISwitch *_hideLocationSwitch;
 }
 
 - (void)viewDidLoad {
@@ -1223,6 +1322,26 @@ static UIViewController *DYToolsTopViewController(void) {
     _removeHotspotSwitch.on = DYToolsBool(kDYToolsRemoveHotspotKey);
     [_removeHotspotSwitch addTarget:self action:@selector(dy_removeHotspotChanged:)
                     forControlEvents:UIControlEventValueChanged];
+
+    _hideEnterLiveSwitch = [UISwitch new];
+    _hideEnterLiveSwitch.on = DYToolsBool(kDYToolsHideEnterLiveKey);
+    [_hideEnterLiveSwitch addTarget:self action:@selector(dy_hideEnterLiveChanged:)
+                    forControlEvents:UIControlEventValueChanged];
+
+    _disableAutoEnterLiveSwitch = [UISwitch new];
+    _disableAutoEnterLiveSwitch.on = DYToolsBool(kDYToolsDisableAutoEnterLiveKey);
+    [_disableAutoEnterLiveSwitch addTarget:self action:@selector(dy_disableAutoEnterLiveChanged:)
+                    forControlEvents:UIControlEventValueChanged];
+
+    _hideSearchSameSwitch = [UISwitch new];
+    _hideSearchSameSwitch.on = DYToolsBool(kDYToolsHideSearchSameKey);
+    [_hideSearchSameSwitch addTarget:self action:@selector(dy_hideSearchSameChanged:)
+                    forControlEvents:UIControlEventValueChanged];
+
+    _hideLocationSwitch = [UISwitch new];
+    _hideLocationSwitch.on = DYToolsBool(kDYToolsHideLocationKey);
+    [_hideLocationSwitch addTarget:self action:@selector(dy_hideLocationChanged:)
+                    forControlEvents:UIControlEventValueChanged];
 }
 
 - (void)dy_close {
@@ -1251,12 +1370,32 @@ static UIViewController *DYToolsTopViewController(void) {
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
+- (void)dy_hideEnterLiveChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsHideEnterLiveKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (void)dy_disableAutoEnterLiveChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsDisableAutoEnterLiveKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (void)dy_hideSearchSameChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsHideSearchSameKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (void)dy_hideLocationChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsHideLocationKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     return 2;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? 1 : 3;
+    return section == 0 ? 1 : 7;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
@@ -1296,9 +1435,23 @@ static UIViewController *DYToolsTopViewController(void) {
         } else if (indexPath.row == 1) {
             cell.textLabel.text = @"移除文案下相关搜索";
             cell.accessoryView = _removeRelatedSearchSwitch;
-        } else {
+        } else if (indexPath.row == 2) {
             cell.textLabel.text = @"移除文案下方热点栏";
             cell.accessoryView = _removeHotspotSwitch;
+        } else if (indexPath.row == 3) {
+            cell.textLabel.text = @"去除点击进入直播间";
+            cell.accessoryView = _hideEnterLiveSwitch;
+        } else if (indexPath.row == 4) {
+            cell.textLabel.text = @"禁止自动进入直播间";
+            cell.accessoryView = _disableAutoEnterLiveSwitch;
+        } else if (indexPath.row == 5) {
+            cell.textLabel.text = @"视频页去除拍同款";
+            cell.accessoryView = _hideSearchSameSwitch;
+        } else if (indexPath.row == 6) {
+            cell.textLabel.text = @"视频页去除位置栏";
+            cell.accessoryView = _hideLocationSwitch;
+        } else {
+            cell.textLabel.text = @"";
         }
         return cell;
     }

@@ -1,0 +1,8 @@
+Package: com.xiaoye.dytools
+Name: DY-Tools
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Douyin multifunction tweak - Fullscreen module
+Maintainer: xiaoye-debug
+Section: Tweaks
+Depends: firmware (>= 15.0)

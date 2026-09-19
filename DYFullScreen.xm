@@ -3975,12 +3975,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 
 
 // 广告 Hook 暂停迁移：避免 40.x Logos 预处理器在相邻 %hook 上生成嵌套函数。
-%hook AWETeenModeAlertView
-- (BOOL)show { if (DYToolsBool(@"DYYYHideTeenMode")) return NO; return %orig; }
-%end
-%hook AWETeenModeSimpleAlertView
-- (BOOL)show { if (DYToolsBool(@"DYYYHideTeenMode")) return NO; return %orig; }
-%end
+// 青少年模式 Hook 暂停迁移：当前 40.x 版本会触发 Logos 生成函数嵌套编译错误。
 // AWEVersionUpdateManager 的 startVersionUpdateWorkflow:completion: 在 40.x 的 Logos 签名不稳定，暂不 Hook，避免预处理器 %orig 参数结构错误。
 %hook AWEAwemeStatusModel
 - (void)setListenVideoStatus:(NSInteger)status {

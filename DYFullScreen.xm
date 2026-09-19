@@ -3037,10 +3037,18 @@ static UIViewController *DYToolsTopViewController(void) {
 }
 
 @interface DYToolsTopBarViewController : UITableViewController
+@property(nonatomic,copy) NSString *focusKey;
+- (instancetype)initWithFocusKey:(NSString *)focusKey;
 @end
 
 @implementation DYToolsTopBarViewController {
     NSArray<NSDictionary *> *_items;
+}
+
+- (instancetype)initWithFocusKey:(NSString *)focusKey {
+    self = [super initWithStyle:UITableViewStyleInsetGrouped];
+    if (self) _focusKey = [focusKey copy];
+    return self;
 }
 
 - (void)viewDidLoad {
@@ -3076,6 +3084,19 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"移除游戏",   @"key":@"DYYYHideGame"},
         @{@"title":@"移除长视频", @"key":@"DYYYHideMediumVideo"}
     ];
+
+    if (_focusKey.length > 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            for (NSInteger row = 1; row < (NSInteger)self->_items.count; row++) {
+                if ([self->_items[row][@"key"] isEqualToString:self->_focusKey]) {
+                    [self.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]
+                                          atScrollPosition:UITableViewScrollPositionMiddle
+                                                  animated:NO];
+                    break;
+                }
+            }
+        });
+    }
 }
 
 - (NSInteger)tableView:(UITableView *)tableView
@@ -3158,11 +3179,20 @@ static UIViewController *DYToolsTopViewController(void) {
 @end
 
 @interface DYToolsBottomBarViewController : UITableViewController
+@property(nonatomic,copy) NSString *focusKey;
+- (instancetype)initWithFocusKey:(NSString *)focusKey;
 @end
 
 @implementation DYToolsBottomBarViewController {
     NSArray<NSDictionary *> *_items;
 }
+
+- (instancetype)initWithFocusKey:(NSString *)focusKey {
+    self = [super initWithStyle:UITableViewStyleInsetGrouped];
+    if (self) _focusKey = [focusKey copy];
+    return self;
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"移除底栏";
@@ -3215,10 +3245,18 @@ static UIViewController *DYToolsTopViewController(void) {
 @end
 
 @interface DYToolsVideoSettingsViewController : UITableViewController
+@property(nonatomic,copy) NSString *focusKey;
+- (instancetype)initWithFocusKey:(NSString *)focusKey;
 @end
 
 @implementation DYToolsVideoSettingsViewController {
     NSArray<NSDictionary *> *_items;
+}
+
+- (instancetype)initWithFocusKey:(NSString *)focusKey {
+    self = [super initWithStyle:UITableViewStyleInsetGrouped];
+    if (self) _focusKey = [focusKey copy];
+    return self;
 }
 
 - (void)viewDidLoad {
@@ -3239,6 +3277,19 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey},
         @{@"title":@"移除视频位置", @"key":@"DYYYHideLocation"}
     ];
+
+    if (_focusKey.length > 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            for (NSInteger row = 1; row < (NSInteger)self->_items.count; row++) {
+                if ([self->_items[row][@"key"] isEqualToString:self->_focusKey]) {
+                    [self.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:row inSection:0]
+                                          atScrollPosition:UITableViewScrollPositionMiddle
+                                                  animated:NO];
+                    break;
+                }
+            }
+        });
+    }
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -3733,7 +3784,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     for (NSDictionary *item in bottomItems) add(item[@"title"],item[@"key"],@"移除底栏",@"bottom",@"");
 
     add(@"去除进入直播间提示",kDYToolsHideEnterLiveKey,@"直播与互动",@"main",@"");
-    add(@"禁止自动进入直播间",kDYToolsDisableAutoEnterLiveKey,@"直播与互动",@"main","");
+    add(@"禁止自动进入直播间",kDYToolsDisableAutoEnterLiveKey,@"直播与互动",@"main",@"");
 
     _allEntries = [entries copy];
     _results = _allEntries;
@@ -3789,11 +3840,11 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     if ([type isEqualToString:@"basic"]) {
         vc = [[DYToolsBasicSettingsViewController alloc] initWithFocusKey:item[@"key"]];
     } else if ([type isEqualToString:@"video"]) {
-        vc = [DYToolsVideoSettingsViewController new];
+        vc = [[DYToolsVideoSettingsViewController alloc] initWithFocusKey:item[@"key"]];
     } else if ([type isEqualToString:@"top"]) {
-        vc = [DYToolsTopBarViewController new];
+        vc = [[DYToolsTopBarViewController alloc] initWithFocusKey:item[@"key"]];
     } else if ([type isEqualToString:@"bottom"]) {
-        vc = [DYToolsBottomBarViewController new];
+        vc = [[DYToolsBottomBarViewController alloc] initWithFocusKey:item[@"key"]];
     } else if ([type isEqualToString:@"main"]) {
         return;
     }

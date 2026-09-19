@@ -1163,21 +1163,15 @@ static void DYToolsRefreshLayout(void) {
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    if (section == 0) return 1;
-    if (section == 1) return 2;
-    return 1;
+    return section == 0 ? 1 : 0;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    if (section == 0) return @"全屏功能";
-    if (section == 1) return @"DY-tools";
-    return @"关于";
+    return @"全屏功能";
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if (section == 0) return @"开启后保留原 DY-FullScreen 的全部全屏布局功能。";
-    if (section == 1) return @"后续新功能统一添加到这里。";
-    return @"DY-tools";
+    return nil;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView
@@ -1199,7 +1193,7 @@ static void DYToolsRefreshLayout(void) {
 
     if (indexPath.section == 0) {
         cell.textLabel.text = @"视频全屏";
-        cell.detailTextLabel.text = @"首页、朋友页、搜索页和他人作品铺满屏幕";
+        cell.detailTextLabel.text = nil;
         cell.accessoryView = _fullscreenSwitch;
         cell.accessoryType = UITableViewCellAccessoryNone;
         return cell;

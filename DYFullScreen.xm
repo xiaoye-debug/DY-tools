@@ -3457,7 +3457,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"时间标签颜色",@"key":@"DYYYLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient",@"type":@"switch"},
         @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar",@"type":@"switch"},@{@"title":@"关注二次确认",@"key":@"DYYYFollowTips",@"type":@"switch"},
         @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips",@"type":@"switch"},@{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality",@"type":@"picker"},
-        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},@{@"title":@"显示开播时长",@"key":@"DYYYEnableLiveRealCount",@"type":@"switch"},@{@"title":@"禁用访客记录上传",@"key":@"DYYYDisableProfileVisitRecordUpload",@"type":@"switch"},@{@"title":@"禁用作品浏览记录上传",@"key":@"DYYYDisableFeedHistoryUpload",@"type":@"switch"},@{@"title":@"小程序跳广告",@"key":@"DYYYMiniProgramSkipAd",@"type":@"switch"},
+        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},@{@"title":@"显示开播时长",@"key":@"DYYYShowLiveDuration",@"type":@"switch"},@{@"title":@"禁用访客记录上传",@"key":@"DYYYDisableProfileVisitRecordUpload",@"type":@"switch"},@{@"title":@"禁用作品浏览记录上传",@"key":@"DYYYDisableFeedHistoryUpload",@"type":@"switch"},@{@"title":@"小程序跳广告",@"key":@"DYYYMiniProgramSkipAd",@"type":@"switch"},
         @{@"title":@"评论具体时间",@"key":@"DYYYCommentExactTime",@"type":@"switch"},
         @{@"title":@"屏蔽灵动岛抖音播放信息",@"key":@"DYYYDisableFeedNowPlayingInfo",@"type":@"switch"}
         ]} 
@@ -4009,7 +4009,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
  add(@"移除音乐按钮",kDYToolsHideMusicButtonKey,@"视频设置",@"video");
  add(@"移除视频位置",@"DYYYHideLocation",@"视频设置",@"video");
  NSArray *b=@[
- @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"],@[@"评论具体时间",@"DYYYCommentExactTime"],@[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo"],@[@"显示开播时长",@"DYYYEnableLiveRealCount"],@[@"禁用访客记录上传",@"DYYYDisableProfileVisitRecordUpload"],@[@"禁用作品浏览记录上传",@"DYYYDisableFeedHistoryUpload"],@[@"小程序跳广告",@"DYYYMiniProgramSkipAd"]];
+ @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"],@[@"评论具体时间",@"DYYYCommentExactTime"],@[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo"],@[@"显示开播时长",@"DYYYShowLiveDuration"],@[@"禁用访客记录上传",@"DYYYDisableProfileVisitRecordUpload"],@[@"禁用作品浏览记录上传",@"DYYYDisableFeedHistoryUpload"],@[@"小程序跳广告",@"DYYYMiniProgramSkipAd"]];
  for(NSArray*x in b)add(x[0],x[1],@"基本设置",@"basic");
  NSArray*t=@[@"推荐",@"DYYYHideHotContainer",@"朋友",@"DYYYHideFriend",@"关注",@"DYYYHideFollow",@"精选",@"DYYYHideMediumVideo",@"商城",@"DYYYHideMall",@"同城",@"DYYYHideNearby",@"团购",@"DYYYHideGroupon",@"直播",@"DYYYHideTabLive",@"热点",@"DYYYHidePadHot",@"经验",@"DYYYHideHangout",@"短剧",@"DYYYHidePlaylet",@"看剧",@"DYYYHideCinema",@"少儿",@"DYYYHideKidsV2",@"游戏",@"DYYYHideGame"];
  for(NSUInteger i=0;i+1<t.count;i+=2)add([NSString stringWithFormat:@"移除%@",t[i]],t[i+1],@"顶栏移除",@"top");
@@ -4206,8 +4206,10 @@ static void DYToolsClearNowPlayingInfo(void) {
 }
 %end
 
-#pragma mark - DYYY Privacy / Live / Mini Program Migration
+#pragma mark - DYYY Privacy Record Upload + Live Duration
 
+// DYYY 39.1+：访问他人主页时由详情组件直接上报访客记录。
+// 这里直接迁移 DYYY 的两个版本兼容入口。
 %hook AWEProfileUserDetailComponent
 - (void)reportUserDetailVisitIfNeeded:(id)user {
     if (DYToolsBool(@"DYYYDisableProfileVisitRecordUpload")) return;
@@ -4222,40 +4224,145 @@ static void DYToolsClearNowPlayingInfo(void) {
 }
 %end
 
-// 作品浏览记录上传：覆盖 40.x 常见的历史记录入口。
-%hook AWEAwemeStatusModel
-- (void)setHasBeenViewed:(BOOL)value {
-    if (DYToolsBool(@"DYYYDisableFeedHistoryUpload")) {
-        %orig(NO);
-        return;
-    }
-    %orig(value);
-}
-%end
+// DYYY“显示开播时长”使用真实直播 Room Model 的 startTime/createTime/liveStartTime
+// 计算已经开播的秒数，并在直播观众页面左上角持续刷新。
+static const void *kDYLiveDurationViewKey = &kDYLiveDurationViewKey;
+static const void *kDYLiveDurationRoomKey = &kDYLiveDurationRoomKey;
+static const void *kDYLiveDurationTimerKey = &kDYLiveDurationTimerKey;
 
-// DYYY 的“直播真实人数”开关实际用于显示直播具体在线人数；
-// 同时提供开播时长的兼容入口，不改变默认行为。
-%hook HTSLiveRoomStatsMessage
-- (NSInteger)displayValue {
-    if (DYToolsBool(@"DYYYEnableLiveRealCount")) return %orig;
-    return %orig;
+static id DYLiveDurationValue(id obj, NSString *key) {
+    if (!obj || !key.length) return nil;
+    @try { return [obj valueForKey:key]; } @catch (__unused NSException *e) { return nil; }
 }
-%end
 
-// 小程序跳广告：DYYY 该功能属于小程序/激励广告流程，而不是隐藏小程序入口。
-// 这里阻止明确的广告跳转 URL，保留普通小程序打开行为。
-%hook BDXWebView
-- (BOOL)shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(NSInteger)navigationType {
-    if (DYToolsBool(@"DYYYMiniProgramSkipAd")) {
-        NSString *url = request.URL.absoluteString.lowercaseString ?: @"";
-        if ([url containsString:@"ad"] ||
-            [url containsString:@"advert"] ||
-            [url containsString:@"ads"] ||
-            [url containsString:@"reward"]) {
-            return NO;
+static NSTimeInterval DYLiveDurationStart(id room) {
+    if (!room) return -1;
+    id raw = DYLiveDurationValue(room, @"rawRoom") ?: room;
+    NSArray *keys = @[@"startTime",@"createTime",@"liveStartTime",@"start_time",@"create_time"];
+    for (NSString *key in keys) {
+        id v = DYLiveDurationValue(raw,key);
+        long long n = [v respondsToSelector:@selector(longLongValue)] ? [v longLongValue] : 0;
+        if (n <= 0) {
+            v = DYLiveDurationValue(room,key);
+            n = [v respondsToSelector:@selector(longLongValue)] ? [v longLongValue] : 0;
+        }
+        if (n > 0) {
+            NSTimeInterval ts = n > 20000000000LL ? n / 1000.0 : n;
+            NSTimeInterval now = NSDate.date.timeIntervalSince1970;
+            if (ts > 1000000000.0 && ts <= now + 3600.0) return MAX(0, now-ts);
         }
     }
-    return %orig(request, navigationType);
+    for (NSString *key in @[@"liveDuration",@"liveTime",@"duration",@"totalDuration"]) {
+        id v = DYLiveDurationValue(raw,key) ?: DYLiveDurationValue(room,key);
+        long long n = [v respondsToSelector:@selector(longLongValue)] ? [v longLongValue] : 0;
+        if (n > 0 && n < 365LL*24LL*3600LL) return n;
+    }
+    return -1;
+}
+
+static NSString *DYLiveDurationText(NSTimeInterval seconds) {
+    long long t = (long long)MAX(0, floor(seconds));
+    long long h=(t%86400)/3600, m=(t%3600)/60, s=t%60, d=t/86400;
+    return d ? [NSString stringWithFormat:@"已开播 %lld天%02lld:%02lld:%02lld",d,h,m,s]
+             : [NSString stringWithFormat:@"已开播 %02lld:%02lld:%02lld",h,m,s];
+}
+
+static void DYLiveDurationRemove(UIView *root) {
+    NSTimer *timer=objc_getAssociatedObject(root,kDYLiveDurationTimerKey);
+    [timer invalidate];
+    objc_setAssociatedObject(root,kDYLiveDurationTimerKey,nil,OBJC_ASSOCIATION_ASSIGN);
+    UIView *v=objc_getAssociatedObject(root,kDYLiveDurationViewKey);
+    [v removeFromSuperview];
+    objc_setAssociatedObject(root,kDYLiveDurationViewKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+static void DYLiveDurationInstall(UIView *root,id room) {
+    if (!root) return;
+    if (!DYToolsBool(@"DYYYShowLiveDuration")) { DYLiveDurationRemove(root); return; }
+
+    NSTimeInterval elapsed=DYLiveDurationStart(room);
+    if (elapsed < 0) return;
+
+    UILabel *label=objc_getAssociatedObject(root,kDYLiveDurationViewKey);
+    if (!label) {
+        label=[[UILabel alloc] initWithFrame:CGRectMake(12,86,150,26)];
+        label.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+        label.textColor=UIColor.whiteColor;
+        label.backgroundColor=[[UIColor blackColor] colorWithAlphaComponent:0.55];
+        label.layer.cornerRadius=13;
+        label.clipsToBounds=YES;
+        label.textAlignment=NSTextAlignmentCenter;
+        objc_setAssociatedObject(root,kDYLiveDurationViewKey,label,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [root addSubview:label];
+    }
+    label.text=DYLiveDurationText(elapsed);
+    label.hidden=NO;
+    [root bringSubviewToFront:label];
+
+    NSTimer *timer=objc_getAssociatedObject(root,kDYLiveDurationTimerKey);
+    if (!timer.isValid) {
+        __weak UIView *weakRoot=root;
+        timer=[NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(__unused NSTimer *t) {
+            UIView *r=weakRoot;
+            if (!r || !r.window) { [t invalidate]; return; }
+            id rm=objc_getAssociatedObject(r,kDYLiveDurationRoomKey);
+            if (!DYToolsBool(@"DYYYShowLiveDuration")) { DYLiveDurationRemove(r); return; }
+            NSTimeInterval e=DYLiveDurationStart(rm);
+            UILabel *l=objc_getAssociatedObject(r,kDYLiveDurationViewKey);
+            if (e>=0) { l.text=DYLiveDurationText(e); l.hidden=NO; }
+        }];
+        objc_setAssociatedObject(root,kDYLiveDurationTimerKey,timer,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    objc_setAssociatedObject(root,kDYLiveDurationRoomKey,room,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+%hook AWELiveAudienceContainerController
+- (id)initWithRoomModel:(id)roomModel {
+    id r=%orig;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.35*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+        UIViewController *vc=DYLiveDurationValue(r,@"audienceVC");
+        if ([vc isKindOfClass:UIViewController.class]) DYLiveDurationInstall(vc.view,DYLiveDurationValue(r,@"roomModel") ?: roomModel);
+    });
+    return r;
+}
+- (void)setRoomModel:(id)roomModel {
+    %orig;
+    UIViewController *vc=DYLiveDurationValue(self,@"audienceVC");
+    if ([vc isKindOfClass:UIViewController.class]) DYLiveDurationInstall(vc.view,roomModel);
+}
+- (void)setAudienceVC:(UIViewController *)vc {
+    %orig;
+    DYLiveDurationInstall(vc.view,DYLiveDurationValue(self,@"roomModel"));
+}
+%end
+
+%hook AWELiveAudienceViewController
+- (id)initWithRoomModel:(id)roomModel {
+    id r=%orig;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.35*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+        UIViewController *vc=DYLiveDurationValue(r,@"audienceViewController");
+        if (![vc isKindOfClass:UIViewController.class]) vc=r;
+        DYLiveDurationInstall(vc.view,DYLiveDurationValue(r,@"roomModel") ?: roomModel);
+    });
+    return r;
+}
+- (void)setRoomModel:(id)roomModel {
+    %orig;
+    UIViewController *vc=DYLiveDurationValue(self,@"audienceViewController");
+    if (![vc isKindOfClass:UIViewController.class]) vc=self;
+    DYLiveDurationInstall(vc.view,roomModel);
+}
+%end
+
+%hook IESLiveInnerFeedLiveRoomCell
+- (void)setItemModel:(id)itemModel {
+    %orig;
+    UIViewController *vc=DYLiveDurationValue(self,@"audienceVC");
+    if ([vc isKindOfClass:UIViewController.class]) DYLiveDurationInstall(vc.view,itemModel);
+}
+- (void)setAudienceVC:(UIViewController *)vc {
+    %orig;
+    DYLiveDurationInstall(vc.view,DYLiveDurationValue(self,@"itemModel"));
 }
 %end
 

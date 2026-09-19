@@ -475,3 +475,40 @@ static CGFloat DYToolsInitialTouchY = 0.0;
 }
 
 %end
+
+
+#pragma mark - 显示视频进度时长
+
+@interface AWEFeedProgressSlider : UIView
+- (void)dyyy_updateScheduleLabelsLegacyWithCurrentTime:(CGFloat)currentTime totalDuration:(CGFloat)totalDuration model:(id)model;
+@end
+
+%hook AWEFeedProgressSlider
+
+- (void)setAlpha:(CGFloat)alpha {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYShowScheduleDisplay"] &&
+        ![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideVideoProgress"]) {
+        %orig(1.0);
+        return;
+    }
+    %orig(alpha);
+}
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYShowScheduleDisplay"]) {
+        return;
+    }
+
+    id model = nil;
+    @try { model = [self valueForKey:@"model"]; } @catch (__unused NSException *e) {}
+
+    CGFloat duration = 0.0;
+    @try { duration = [[model valueForKey:@"videoDuration"] doubleValue] / 1000.0; } @catch (__unused NSException *e) {}
+
+    // 初次布局时至少建立时间标签；播放进度更新由原控制器调用时继续刷新。
+    [self dyyy_updateScheduleLabelsLegacyWithCurrentTime:0.0 totalDuration:duration model:model];
+}
+
+%end

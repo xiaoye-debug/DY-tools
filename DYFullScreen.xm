@@ -3322,6 +3322,16 @@ static UIViewController *DYToolsTopViewController(void) {
     return cell;
 }
 
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (indexPath.section == 1 && indexPath.row == 5) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        DYToolsTopBarViewController *vc = [DYToolsTopBarViewController new];
+        [self.navigationController pushViewController:vc animated:YES];
+        return;
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+}
+
 @end
 
 static void DYToolsPresentControlPanel(void) {

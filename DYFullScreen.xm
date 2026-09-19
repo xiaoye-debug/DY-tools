@@ -268,6 +268,23 @@ BOOL DYFSIsEnabled(void) {
     for (NSString *key in dyTopBarKeys) {
         if ([defaults objectForKey:key] == nil) [defaults setBool:NO forKey:key];
     }
+
+    NSArray *dyBottomBarKeys = @[
+        @"DYYYHideShopButton",
+        @"DYYYHideDoubleColumnEntry",
+        @"DYYYHideMessageButton",
+        @"DYYYHideFriendsButton",
+        @"DYYYHideMyButton",
+        @"DYYYHidePlusButton",
+        @"DYYYHideComment",
+        @"DYYYHideBottomDot",
+        @"DYYYHideBottomBg",
+        @"DYYYHidePadTabBarElements"
+    ];
+    for (NSString *key in dyBottomBarKeys) {
+        if ([defaults objectForKey:key] == nil) [defaults setBool:NO forKey:key];
+    }
+
     [defaults synchronize];
     return [defaults boolForKey:kDYFSFullScreenEnabledKey];
 }
@@ -389,6 +406,47 @@ static UIWindow *DYFSActiveWindow(void) {
         }
     }
     if (gDYFSCurrentTabBarHeight <= 0.0) gDYFSCurrentTabBarHeight = gDYFSOriginalTabBarHeight;
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    BOOL hideShop = [defaults boolForKey:@"DYYYHideShopButton"];
+    BOOL hideMsg = [defaults boolForKey:@"DYYYHideMessageButton"];
+    BOOL hideFriends = [defaults boolForKey:@"DYYYHideFriendsButton"];
+    BOOL hideMy = [defaults boolForKey:@"DYYYHideMyButton"];
+
+    NSMutableArray<UIView *> *visibleButtons = [NSMutableArray array];
+    for (UIView *sub in [self.subviews copy]) {
+        NSString *label = sub.accessibilityLabel ?: @"";
+        NSString *className = NSStringFromClass(sub.class);
+        BOOL isGeneralButton =
+            [className isEqualToString:@"AWENormalModeTabBarGeneralButton"] ||
+            [className isEqualToString:@"AWENormalModeTabBarGeneralPlusButton"];
+
+        BOOL shouldHide =
+            (hideShop && [label containsString:@"商城"]) ||
+            (hideMsg && [label containsString:@"消息"]) ||
+            (hideFriends && [label containsString:@"朋友"]) ||
+            (hideMy && [label isEqualToString:@"我"]);
+
+        if (shouldHide) {
+            sub.hidden = YES;
+            sub.userInteractionEnabled = NO;
+        } else if (isGeneralButton) {
+            sub.hidden = NO;
+            [visibleButtons addObject:sub];
+        }
+    }
+
+    if (visibleButtons.count > 0 && (hideShop || hideMsg || hideFriends || hideMy)) {
+        CGFloat width = self.bounds.size.width / visibleButtons.count;
+        for (NSUInteger i = 0; i < visibleButtons.count; i++) {
+            UIView *button = visibleButtons[i];
+            CGRect frame = button.frame;
+            frame.origin.x = i * width;
+            frame.size.width = width;
+            button.frame = frame;
+        }
+    }
 
     if (!DYFSIsEnabled()) return;
 
@@ -841,6 +899,12 @@ static BOOL DYFSShouldAdjustMetalView(UIView *view) {
 %hook AWECommentInputBackgroundView
 - (void)layoutSubviews {
     %orig;
+
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideComment"]) {
+        [self removeFromSuperview];
+        return;
+    }
+
     if (!DYFSIsEnabled()) return;
 
     if (DYFSIsAuthorWorkDetailContext(self) || DYFSIsAuthorProfileContext(self)) {
@@ -849,7 +913,7 @@ static BOOL DYFSShouldAdjustMetalView(UIView *view) {
         return;
     }
 
-    self.transform=CGAffineTransformMakeTranslation(0, gDYFSOriginalTabBarHeight-gDYFSCurrentTabBarHeight);
+    self.transform = CGAffineTransformMakeTranslation(0, gDYFSOriginalTabBarHeight - gDYFSCurrentTabBarHeight);
 }
 %end
 
@@ -2741,98 +2805,37 @@ static NSHashTable *processedParentViews = nil;
 %hook AWENormalModeTabBarFeedView
 
 - (void)layoutSubviews {
-    @try {
-        %orig;
-        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideDoubleColumnEntry"]) {
-            return;
+    %orig;
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideDoubleColumnEntry"]) return;
+
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithArray:self.subviews];
+    while (queue.count) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        NSString *name = NSStringFromClass(view.class).lowercaseString;
+        NSString *label = (view.accessibilityLabel ?: @"").lowercaseString;
+        NSString *text = [view isKindOfClass:[UILabel class]]
+            ? (((UILabel *)view).text ?: @"").lowercaseString
+            : @"";
+
+        BOOL match =
+            [name containsString:@"doublecolumn"] ||
+            [name containsString:@"multicolumn"] ||
+            [name containsString:@"twocolumn"] ||
+            [label containsString:@"双列"] ||
+            [label containsString:@"两列"] ||
+            [label containsString:@"多列"] ||
+            [text containsString:@"双列"] ||
+            [text containsString:@"两列"] ||
+            [text containsString:@"多列"];
+
+        if (match) {
+            view.hidden = YES;
+            view.userInteractionEnabled = NO;
         }
 
-        static char kDYDoubleColumnCacheKey;
-        static char kDYDoubleColumnCountKey;
-        NSArray *cachedViews = objc_getAssociatedObject(self, &kDYDoubleColumnCacheKey);
-        NSNumber *cachedCount = objc_getAssociatedObject(self, &kDYDoubleColumnCountKey);
-        if (!cachedViews || cachedCount.unsignedIntegerValue != self.subviews.count) {
-            NSMutableArray *views = [NSMutableArray array];
-            for (UIView *subview in self.subviews) {
-                if (![subview isKindOfClass:[UILabel class]]) {
-                    [views addObject:subview];
-                }
-            }
-            cachedViews = [views copy];
-            objc_setAssociatedObject(self, &kDYDoubleColumnCacheKey, cachedViews, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            objc_setAssociatedObject(self, &kDYDoubleColumnCountKey, @(self.subviews.count), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        }
-
-        for (UIView *v in cachedViews) {
-            v.hidden = YES;
-        }
-
-        if (![NSThread isMainThread]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-              [self layoutSubviews];
-            });
-            return;
-        }
-
-        if (!self || !self.superview) {
-            return;
-        }
-
-        NSString *indexTitle = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYIndexTitle"];
-
-        if (!(indexTitle.length)) {
-            return;
-        }
-
-        static char kDYTabFeedLabelCacheKey;
-        NSArray *labelCache = objc_getAssociatedObject(self, &kDYTabFeedLabelCacheKey);
-        if (!labelCache) {
-            NSMutableArray *tmp = [NSMutableArray array];
-            if (!tmp) {
-                return;
-            }
-
-            NSArray *subviews = [self subviews];
-            if (!subviews) {
-                return;
-            }
-
-            for (UIView *subview in subviews) {
-                if (subview && [subview isKindOfClass:[UILabel class]]) {
-                    [tmp addObject:subview];
-                }
-            }
-
-            labelCache = [tmp copy];
-            if (labelCache) {
-                objc_setAssociatedObject(self, &kDYTabFeedLabelCacheKey, labelCache, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            }
-        }
-
-        if (!labelCache) {
-            return;
-        }
-
-        for (UILabel *label in labelCache) {
-            if (!label || ![label isKindOfClass:[UILabel class]]) {
-                continue;
-            }
-
-            NSString *labelText = label.text;
-            if (!labelText) {
-                continue;
-            }
-
-            if ([labelText isEqualToString:@"首页"] && indexTitle.length > 0) {
-                label.text = indexTitle;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                  [self setNeedsLayout];
-                });
-            }
-        }
-
-    } @catch (NSException *exception) {
-        return;
+        [queue addObjectsFromArray:view.subviews];
     }
 }
 %end
@@ -3188,7 +3191,6 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"隐藏底栏朋友", @"key":@"DYYYHideFriendsButton"},
         @{@"title":@"隐藏底栏我的", @"key":@"DYYYHideMyButton"},
         @{@"title":@"隐藏底栏加号", @"key":@"DYYYHidePlusButton"},
-        @{@"title":@"隐藏底栏热榜", @"key":@"DYYYHideHotSearch"},
         @{@"title":@"隐藏底栏评论", @"key":@"DYYYHideComment"},
         @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
         @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},

@@ -3977,16 +3977,34 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 - (BOOL)isAutoPlayOpen { if(DYToolsBool(@"DYYYEnableAutoPlay"))return YES; return %orig; }
 %end
 %hook BDByteCastMonitorManager
-- (BOOL)netVPNStatus { if(DYToolsBool(@"DYYYDisableCastVPNCheck"))return NO; return %orig; }
-- (void)setNetVPNStatus:(BOOL)v { if(DYToolsBool(@"DYYYDisableCastVPNCheck")){%orig(NO);return;} %orig(v); }
+- (BOOL)netVPNStatus {
+    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+- (void)setNetVPNStatus:(BOOL)v {
+    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return;
+    %orig;
+}
 %end
 %hook BDByteCastEnvInfo
-- (BOOL)isVPNActive { if(DYToolsBool(@"DYYYDisableCastVPNCheck"))return NO; return %orig; }
-- (void)setIsVPNActive:(BOOL)v { if(DYToolsBool(@"DYYYDisableCastVPNCheck")){%orig(NO);return;} %orig(v); }
+- (BOOL)isVPNActive {
+    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+- (void)setIsVPNActive:(BOOL)v {
+    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return;
+    %orig;
+}
 %end
 %hook BDByteScreenCastContext
-- (BOOL)isVPNActive { if(DYToolsBool(@"DYYYDisableCastVPNCheck"))return NO; return %orig; }
-- (void)setIsVPNActive:(BOOL)v { if(DYToolsBool(@"DYYYDisableCastVPNCheck")){%orig(NO);return;} %orig(v); }
+- (BOOL)isVPNActive {
+    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+- (void)setIsVPNActive:(BOOL)v {
+    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return;
+    %orig;
+}
 %end
 
 - (void)updateSearchResultsForSearchController:(UISearchController *)searchController {

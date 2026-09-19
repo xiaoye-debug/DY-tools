@@ -1209,13 +1209,11 @@ static UIViewController *DYToolsTopViewController(void) {
 - (void)dy_removeShuiTingChanged:(UISwitch *)sender {
     [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveShuiTingKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
-    DYToolsRefreshTargetUI();
 }
 
 - (void)dy_removeRelatedSearchChanged:(UISwitch *)sender {
     [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveRelatedSearchKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
-    DYToolsRefreshTargetUI();
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {

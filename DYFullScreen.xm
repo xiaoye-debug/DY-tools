@@ -1027,166 +1027,83 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
 
 #pragma mark - DY-tools UI features
 
+// 这两个功能不再使用 UILabel/UIButton 全局文字扫描。
+// 直接迁移已经在 DYKiller / DYYY 中验证过的抖音业务 Hook。
+
 static BOOL DYToolsBool(NSString *key) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];
 }
 
-static BOOL DYToolsIsControlPanelView(UIView *view) {
-    UIResponder *r = view;
-    while (r) {
-        if ([r isKindOfClass:NSClassFromString(@"DYToolsControlViewController")]) return YES;
-        r = [r nextResponder];
-    }
-    return NO;
-}
+@interface AWEPlayInteractionViewController (DYToolsMusicInfo)
+- (BOOL)hideMusicInfo;
+@end
 
-static BOOL DYToolsShouldRemoveUIString(NSString *text) {
-    if (!text.length) return NO;
+%hook AWEPlayInteractionViewController
 
-    NSString *s = [text stringByReplacingOccurrencesOfString:@" " withString:@""];
-    NSString *s2 = [s stringByReplacingOccurrencesOfString:@"\n" withString:@""];
-
-    if (DYToolsBool(kDYToolsRemoveShuiTingKey) &&
-        [s2 containsString:@"去汽水听"]) {
+- (BOOL)hideMusicInfo {
+    if (DYToolsBool(kDYToolsRemoveShuiTingKey)) {
         return YES;
     }
-
-    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey) &&
-        [s2 containsString:@"相关搜索"]) {
-        return YES;
-    }
-
-    return NO;
+    return %orig;
 }
 
-static void DYToolsApplyViewVisibility(UIView *view) {
-    if (!view || DYToolsIsControlPanelView(view)) return;
+%end
 
-    NSString *accessibility = view.accessibilityLabel;
-    if (DYToolsShouldRemoveUIString(accessibility)) {
-        view.hidden = YES;
-        view.alpha = 0.0;
-        objc_setAssociatedObject(view, @selector(DYToolsApplyViewVisibility),
-                                 @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+// 抖音暂停后显示的“相关搜索/相关词”业务组件。
+// 直接采用已验证的 AWEFeedPauseRelatedWordComponent Hook，
+// 不依赖 UILabel 文本，也不会误伤 DY-tools 自己的控制面板。
+
+@interface AWEFeedPauseVideoRelatedWordView : UIView
+@end
+
+@interface AWEFeedPauseRelatedWordComponent : NSObject
+@property(nonatomic,strong) AWEFeedPauseVideoRelatedWordView *relatedView;
+- (id)updateViewWithModel:(id)arg0;
+- (id)pauseContentWithModel:(id)arg0;
+- (id)recommendsWords;
+- (void)showRelatedRecommendPanelControllerWithSelectedText:(id)arg0;
+- (void)setupUI;
+@end
+
+%hook AWEFeedPauseRelatedWordComponent
+
+- (id)updateViewWithModel:(id)arg0 {
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (id)pauseContentWithModel:(id)arg0 {
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (id)recommendsWords {
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (void)showRelatedRecommendPanelControllerWithSelectedText:(id)arg0 {
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
         return;
     }
-
-    if ([objc_getAssociatedObject(view, @selector(DYToolsApplyViewVisibility)) boolValue]) {
-        view.hidden = NO;
-        view.alpha = 1.0;
-        objc_setAssociatedObject(view, @selector(DYToolsApplyViewVisibility),
-                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
+    %orig;
 }
 
-static void DYToolsApplyLabelVisibility(UILabel *label) {
-    if (!label || DYToolsIsControlPanelView(label)) return;
-
-    BOOL remove = DYToolsShouldRemoveUIString(label.text);
-    if (remove) {
-        label.hidden = YES;
-        label.alpha = 0.0;
-        objc_setAssociatedObject(label, @selector(DYToolsApplyLabelVisibility),
-                                 @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    } else if ([objc_getAssociatedObject(label, @selector(DYToolsApplyLabelVisibility)) boolValue]) {
-        label.hidden = NO;
-        label.alpha = 1.0;
-        objc_setAssociatedObject(label, @selector(DYToolsApplyLabelVisibility),
-                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-}
-
-static void DYToolsApplyButtonVisibility(UIButton *button) {
-    if (!button || DYToolsIsControlPanelView(button)) return;
-
-    NSString *title = [button titleForState:UIControlStateNormal];
-    if (!title.length) title = button.accessibilityLabel;
-
-    BOOL remove = DYToolsShouldRemoveUIString(title);
-    if (remove) {
-        button.hidden = YES;
-        button.alpha = 0.0;
-        objc_setAssociatedObject(button, @selector(DYToolsApplyButtonVisibility),
-                                 @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    } else if ([objc_getAssociatedObject(button, @selector(DYToolsApplyButtonVisibility)) boolValue]) {
-        button.hidden = NO;
-        button.alpha = 1.0;
-        objc_setAssociatedObject(button, @selector(DYToolsApplyButtonVisibility),
-                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-}
-
-static void DYToolsScanViewTree(UIView *root) {
-    if (!root || DYToolsIsControlPanelView(root)) return;
-
-    DYToolsApplyViewVisibility(root);
-    if ([root isKindOfClass:UILabel.class]) {
-        DYToolsApplyLabelVisibility((UILabel *)root);
-    } else if ([root isKindOfClass:UIButton.class]) {
-        DYToolsApplyButtonVisibility((UIButton *)root);
-    } else if ([root isKindOfClass:UITextView.class]) {
-        UITextView *tv = (UITextView *)root;
-        if (DYToolsShouldRemoveUIString(tv.text)) {
-            tv.hidden = YES;
-            tv.alpha = 0.0;
+- (void)setupUI {
+    %orig;
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
+        if (self.relatedView) {
+            self.relatedView.hidden = YES;
         }
     }
-
-    for (UIView *subview in [root.subviews copy]) {
-        DYToolsScanViewTree(subview);
-    }
 }
 
-static void DYToolsRefreshTargetUI(void) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = DYFSActiveWindow();
-        if (!window) return;
-        DYToolsScanViewTree(window);
-        [window.rootViewController.view setNeedsLayout];
-        [window.rootViewController.view layoutIfNeeded];
-        DYToolsScanViewTree(window);
-    });
-}
-
-%hook UILabel
-- (void)setText:(NSString *)text {
-    %orig(text);
-    DYToolsApplyLabelVisibility(self);
-}
-- (void)layoutSubviews {
-    %orig;
-    DYToolsApplyLabelVisibility(self);
-}
-%end
-
-%hook UIButton
-- (void)setTitle:(NSString *)title forState:(UIControlState)state {
-    %orig(title, state);
-    if (state == UIControlStateNormal) DYToolsApplyButtonVisibility(self);
-}
-- (void)layoutSubviews {
-    %orig;
-    DYToolsApplyButtonVisibility(self);
-}
-%end
-
-%hook UITextView
-- (void)setText:(NSString *)text {
-    %orig(text);
-    if (!DYToolsIsControlPanelView(self) &&
-        DYToolsShouldRemoveUIString(text)) {
-        self.hidden = YES;
-        self.alpha = 0.0;
-    }
-}
-- (void)layoutSubviews {
-    %orig;
-    if (!DYToolsIsControlPanelView(self) &&
-        DYToolsShouldRemoveUIString(self.text)) {
-        self.hidden = YES;
-        self.alpha = 0.0;
-    }
-}
 %end
 
 #pragma mark - DY-tools control panel
@@ -1218,8 +1135,6 @@ static void DYToolsRefreshTargetUI(void) {
 @property(nonatomic,strong) NSArray *sectionDataArray;
 @property(nonatomic,assign) NSInteger colorStyle;
 @end
-
-static NSString *const kDYToolsGitHubURL = @"https://github.com/xiaoye-debug/DY-tools";
 
 static UIViewController *DYToolsTopViewController(void) {
     UIWindow *window = DYFSActiveWindow();
@@ -1394,8 +1309,8 @@ static AWESettingItemModel *DYToolsMakeEntryItem(void) {
     item.detail = @"1.0";
 
     // 同时设置两套抖音设置项图标字段，兼容不同 40.x 设置 Cell。
-    item.iconImageName = @"ic_settings_outlined";
-    item.svgIconImageName = @"ic_settings_outlined";
+    item.iconImageName = @"ic_gearsimplify_outlined_20";
+    item.svgIconImageName = @"ic_gearsimplify_outlined_20";
 
     item.cellType = 26;
     item.colorStyle = 0;

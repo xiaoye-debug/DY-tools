@@ -4000,7 +4000,8 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     NSString *type = item[@"type"];
     NSString *key = item[@"key"];
 
-    [_globalSearchController setActive:NO animated:YES];
+    [_globalSearchController.searchBar resignFirstResponder];
+    _globalSearchController.active = NO;
 
     if ([type isEqualToString:@"basic"]) {
         [self.navigationController pushViewController:

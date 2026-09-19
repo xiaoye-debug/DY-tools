@@ -497,8 +497,7 @@ static void DYFSRestoreFeedTables(void) {
         CGRect f = table.frame;
         f.size.height = original.doubleValue;
         table.frame = f;
-    }
-    [gDYFSStretchedTables removeAllObjects];
+    }    [gDYFSStretchedTables removeAllObjects];
 }
 
 %hook AWEFeedDataSafeTableView
@@ -997,7 +996,6 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
 // thing covering the area exposed when the player is pinned to the full cell.
 // Copy that actual background color to the first ancestor that exposes the
 // area below the player. This is the same strategy used by DYKiller.
-
 static char kDYFSBackdropAppliedKey;
 static char kDYFSCellBackdropKey;
 
@@ -1497,8 +1495,7 @@ static BOOL DYToolsBool(NSString *key) {
 
 %hook LOTAnimationView
 - (void)layoutSubviews {
-    %orig;
-    // 确保只有头像的LOTAnimationView才则执行该逻辑, 防止误杀
+    %orig;    // 确保只有头像的LOTAnimationView才则执行该逻辑, 防止误杀
     if ([self.superview isKindOfClass:%c(AWEPlayInteractionFollowPromptView)]) {
         // 检查是否需要隐藏加号
         if (DYToolsBool(@"DYYYHideLOTAnimationView") || DYToolsBool(@"DYYYHideFollowPromptView")) {
@@ -1997,7 +1994,6 @@ static BOOL DYToolsBool(NSString *key) {
     }
 }
 %end
-
 %hook IESLiveKTVSongIndicatorView
 - (void)layoutSubviews {
     %orig;
@@ -2498,7 +2494,6 @@ static NSHashTable *processedParentViews = nil;
 	}
 	return %orig;
 }
-
 - (id)hashtagName {
 	BOOL DYYYHideChallengeStickers = DYToolsBool(@"DYYYHideChallengeStickers");
 	if (DYYYHideChallengeStickers) {
@@ -2914,8 +2909,10 @@ static UIViewController *DYToolsTopViewController(void) {
     self.tableView.rowHeight = 52.0;
     _items = @[
         @{@"title":@"隐藏全屏观看", @"key":@"DYYYHideEntry"},
+        @{@"title":@"隐藏右上搜索", @"key":@"DYYYHideDiscover"},
+        @{@"title":@"隐藏搜索入口", @"key":@"DYYYHideSearchEntrance"},
+        @{@"title":@"隐藏搜索气泡", @"key":@"DYYYHideSearchBubble"},
         @{@"title":@"隐藏底栏商城", @"key":@"DYYYHideShopButton"},
-        @{@"title":@"隐藏双列箭头", @"key":@"DYYYHideDoubleColumnEntry"},
         @{@"title":@"隐藏底栏消息", @"key":@"DYYYHideMessageButton"},
         @{@"title":@"隐藏底栏朋友", @"key":@"DYYYHideFriendsButton"},
         @{@"title":@"隐藏底栏我的", @"key":@"DYYYHideMyButton"},
@@ -2925,82 +2922,15 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
         @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},
         @{@"title":@"精简平板底栏", @"key":@"DYYYHidePadTabBarElements"},
-        @{@"title":@"隐藏常用小程序", @"key":@"DYYYHideSidebarRecentApps"},
-        @{@"title":@"隐藏常访问的人", @"key":@"DYYYHideSidebarRecentUsers"},
-        @{@"title":@"隐藏侧栏红点", @"key":@"DYYYHideSidebarDot"},
-        @{@"title":@"隐藏发作品框", @"key":@"DYYYHidePostView"},
-        @{@"title":@"隐藏头像加号", @"key":@"DYYYHideLOTAnimationView"},
-        @{@"title":@"移除头像加号", @"key":@"DYYYHideFollowPromptView"},
-        @{@"title":@"隐藏点赞数值", @"key":@"DYYYHideLikeLabel"},
-        @{@"title":@"隐藏评论数值", @"key":@"DYYYHideCommentLabel"},
-        @{@"title":@"隐藏收藏数值", @"key":@"DYYYHideCollectLabel"},
-        @{@"title":@"隐藏分享数值", @"key":@"DYYYHideShareLabel"},
-        @{@"title":@"隐藏点赞按钮", @"key":@"DYYYHideLikeButton"},
-        @{@"title":@"隐藏评论按钮", @"key":@"DYYYHideCommentButton"},
-        @{@"title":@"隐藏收藏按钮", @"key":@"DYYYHideCollectButton"},
-        @{@"title":@"隐藏头像按钮", @"key":@"DYYYHideAvatarButton"},
-        @{@"title":@"隐藏音乐按钮", @"key":@"DYYYHideMusicButton"},
-        @{@"title":@"隐藏分享按钮", @"key":@"DYYYHideShareButton"},
-        @{@"title":@"隐藏视频定位", @"key":@"DYYYHideLocation"},
-        @{@"title":@"隐藏右上搜索", @"key":@"DYYYHideDiscover"},
-        @{@"title":@"隐藏相关搜索", @"key":@"DYYYHideInteractionSearch"},
-        @{@"title":@"隐藏弹出热搜", @"key":@"DYYYHideSearchBubble"},
-        @{@"title":@"隐藏搜索同款", @"key":@"DYYYHideSearchSame"},
-        @{@"title":@"隐藏长框搜索", @"key":@"DYYYHideSearchEntrance"},
-        @{@"title":@"隐藏进入直播", @"key":@"DYYYHideEnterLive"},
-        @{@"title":@"隐藏评论视图", @"key":@"DYYYHideCommentViews"},
-        @{@"title":@"隐藏通知提示", @"key":@"DYYYHidePushBanner"},
-        @{@"title":@"隐藏消息顶栏红包", @"key":@"DYYYHideMessageTabRedPacket"},
-        @{@"title":@"隐藏头像列表", @"key":@"DYYYHideAvatarList"},
-        @{@"title":@"隐藏头像气泡", @"key":@"DYYYHideAvatarBubble"},
         @{@"title":@"隐藏左侧边栏", @"key":@"DYYYHideLeftSideBar"},
-        @{@"title":@"隐藏吃喝玩乐", @"key":@"DYYYHideNearbyCapsuleView"},
-        @{@"title":@"隐藏弹幕按钮", @"key":@"DYYYHideDanmuButton"},
-        @{@"title":@"隐藏取消静音", @"key":@"DYYYHideCancelMute"},
-        @{@"title":@"隐藏去汽水听", @"key":@"DYYYHideQuqishuiting"},
-        @{@"title":@"隐藏共创头像", @"key":@"DYYYHideGongChuang"},
-        @{@"title":@"隐藏热点提示", @"key":@"DYYYHideHotspot"},
-        @{@"title":@"隐藏推荐提示", @"key":@"DYYYHideRecommendTips"},
-        @{@"title":@"隐藏分享提示", @"key":@"DYYYHideShareContentView"},
-        @{@"title":@"隐藏作者声明", @"key":@"DYYYHideAntiAddictedNotice"},
-        @{@"title":@"隐藏底部相关", @"key":@"DYYYHideBottomRelated"},
-        @{@"title":@"隐藏视频锚点", @"key":@"DYYYHideFeedAnchorContainer"},
-        @{@"title":@"隐藏挑战贴纸", @"key":@"DYYYHideChallengeStickers"},
-        @{@"title":@"隐藏图文标签", @"key":@"DYYYHideEditTags"},
-        @{@"title":@"隐藏校园提示", @"key":@"DYYYHideTemplateTags"},
-        @{@"title":@"隐藏作者店铺", @"key":@"DYYYHideHisShop"},
+        @{@"title":@"隐藏侧栏红点", @"key":@"DYYYHideSidebarDot"},
+        @{@"title":@"隐藏消息顶栏红包", @"key":@"DYYYHideMessageTabRedPacket"},
         @{@"title":@"隐藏顶栏横线", @"key":@"DYYYHideTopBarLine"},
-        @{@"title":@"隐藏视频合集", @"key":@"DYYYHideTemplateVideo"},
-        @{@"title":@"隐藏短剧合集", @"key":@"DYYYHideTemplatePlaylet"},
-        @{@"title":@"隐藏动图标签", @"key":@"DYYYHideLiveGIF"},
-        @{@"title":@"隐藏笔记标签", @"key":@"DYYYHideItemTag"},
-        @{@"title":@"隐藏底部话题", @"key":@"DYYYHideTemplateGroup"},
-        @{@"title":@"隐藏相机定位", @"key":@"DYYYHideCameraLocation"},
-        @{@"title":@"隐藏视频滑条", @"key":@"DYYYHideStoryProgressSlide"},
-        @{@"title":@"隐藏图片滑条", @"key":@"DYYYHideDotsIndicator"},
-        @{@"title":@"隐藏分享私信", @"key":@"DYYYHidePrivateMessages"},
-        @{@"title":@"隐藏昵称右侧", @"key":@"DYYYHideRightLabel"},
-        @{@"title":@"隐藏群聊商店", @"key":@"DYYYHideGroupShop"},
-        @{@"title":@"隐藏直播胶囊", @"key":@"DYYYHideLiveCapsuleView"},
-        @{@"title":@"隐藏关注顶端", @"key":@"DYYYHideLiveView"},
-        @{@"title":@"隐藏关注直播", @"key":@"DYYYHideConcernCapsuleView"},
-        @{@"title":@"隐藏同城顶端", @"key":@"DYYYHideMenuView"},
-        @{@"title":@"隐藏群直播中", @"key":@"DYYYHideGroupLiveIndicator"},
-        @{@"title":@"隐藏聊天底栏", @"key":@"DYYYHideGroupInputActionBar"},
-        @{@"title":@"隐藏添加朋友", @"key":@"DYYYHideButton"},
-        @{@"title":@"隐藏日常按钮", @"key":@"DYYYHideFamiliar"},
-        @{@"title":@"隐藏直播广场", @"key":@"DYYYHideLivePlayground"},
-        @{@"title":@"隐藏礼物展馆", @"key":@"DYYYHideGiftPavilion"},
         @{@"title":@"隐藏顶栏红点", @"key":@"DYYYHideTopBarBadge"},
-        @{@"title":@"隐藏退出清屏", @"key":@"DYYYHideLiveRoomClear"},
-        @{@"title":@"隐藏投屏按钮", @"key":@"DYYYHideLiveRoomMirroring"},
-        @{@"title":@"隐藏直播发现", @"key":@"DYYYHideLiveDiscovery"},
-        @{@"title":@"隐藏直播点歌", @"key":@"DYYYHideKTVSongIndicator"},
-        @{@"title":@"隐藏流量提醒", @"key":@"DYYYHideCellularAlert"},
-        @{@"title":@"隐藏红包悬浮", @"key":@"DYYYHidePendantGroup"},
-        @{@"title":@"隐藏章节进度", @"key":@"DYYYHideChapterProgress"},
-        @{@"title":@"隐藏键盘AI", @"key":@"DYYYHideKeyboardAI"},
-        @{@"title":@"隐藏上次看到", @"key":@"DYYYHidePopover"}
+        @{@"title":@"隐藏关注顶端", @"key":@"DYYYHideLiveView"},
+        @{@"title":@"隐藏同城顶端", @"key":@"DYYYHideMenuView"},
+        @{@"title":@"隐藏关注直播胶囊", @"key":@"DYYYHideConcernCapsuleView"},
+        @{@"title":@"隐藏直播胶囊", @"key":@"DYYYHideLiveCapsuleView"}
     ];
     self.navigationItem.rightBarButtonItems = @[
         [[UIBarButtonItem alloc] initWithTitle:@"一键取消" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectNone)],

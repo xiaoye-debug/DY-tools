@@ -1,4 +1,37 @@
 #import <UIKit/UIKit.h>
+
+#pragma mark - DYYY UIView class declarations
+
+@interface AWEFamiliarNavView : UIView
+@end
+
+@interface AWEPlayInteractionStrongifyShareContentView : UIView
+@end
+
+@interface AWELeftSideBarEntranceView : UIView
+@end
+
+@interface AWEFeedVideoButton : UIView
+@end
+
+@interface AWEHPSearchBubbleEntranceView : UIView
+@end
+
+@interface AWEPlayInteractionFollowPromptView : UIView
+@end
+
+@interface AWEHotSearchInnerBottomView : UIView
+@end
+
+@interface AWESearchEntranceView : UIView
+@end
+
+@interface AWEStoryProgressSlideView : UIView
+@end
+
+@interface AFDNewFastReplyView : UIView
+@end
+
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <objc/message.h>

@@ -21,8 +21,22 @@
         return %orig(timestamp);
     }
 
-    // DYYY 原逻辑：返回 Unix 时间戳字符串，随后由评论时间显示链路处理。
-    return [NSString stringWithFormat:@"%.0f ", timestamp];
+    // 评论时间接口传入的是 Unix 时间戳。这里必须把时间戳转换成可读日期，
+    // 不能直接把数字时间戳返回给 UILabel，否则评论区会显示一串数字。
+    // 同时兼容少数接口返回的毫秒级时间戳。
+    NSTimeInterval seconds = timestamp;
+    if (seconds > 100000000000.0) {
+        seconds /= 1000.0;
+    }
+
+    NSDate *date = [NSDate dateWithTimeIntervalSince1970:seconds];
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"zh_CN"];
+    formatter.calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+    formatter.timeZone = [NSTimeZone localTimeZone];
+    formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+
+    return [formatter stringFromDate:date];
 }
 
 %end

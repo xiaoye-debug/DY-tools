@@ -4720,3 +4720,273 @@ static BOOL DYFSIsAuthorWorkDetailContext(UIView *view) {
 
     NSLog(@"[DY-FullScreen] loaded, fullscreen=%@", DYFSIsEnabled() ? @"ON" : @"OFF");
 }
+
+#pragma mark - DYYY Basic Settings Functional Migration (40.x)
+
+// 这些功能直接读取 DY-tools 基础设置中的 DYYY* 配置。
+// 关闭开关时全部走 %orig，避免改变抖音原始行为。
+
+static BOOL DYToolsBasicBool(NSString *key) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+}
+
+static CGFloat DYToolsColorComponent(NSString *hex, NSUInteger location) {
+    if (hex.length < location + 2) return 0.0;
+    unsigned int value = 0;
+    NSString *part = [hex substringWithRange:NSMakeRange(location, 2)];
+    [[NSScanner scannerWithString:part] scanHexInt:&value];
+    return (CGFloat)value / 255.0;
+}
+
+static UIColor *DYToolsBasicColorFromHex(NSString *value) {
+    if (![value isKindOfClass:NSString.class]) return nil;
+    NSString *hex = [value stringByTrimmingCharactersInSet:
+                     [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([hex hasPrefix:@"#"]) hex = [hex substringFromIndex:1];
+    if (hex.length == 3) {
+        hex = [NSString stringWithFormat:@"%C%C%C%C%C%C",
+               [hex characterAtIndex:0], [hex characterAtIndex:0],
+               [hex characterAtIndex:1], [hex characterAtIndex:1],
+               [hex characterAtIndex:2], [hex characterAtIndex:2]];
+    }
+    if (hex.length != 6) return nil;
+    return [UIColor colorWithRed:DYToolsColorComponent(hex, 0)
+                           green:DYToolsColorComponent(hex, 2)
+                            blue:DYToolsColorComponent(hex, 4)
+                           alpha:1.0];
+}
+
+// 1. 提高视频画质：与 DYYY 的 AWEVideoModel bitrateModels/playURL 逻辑一致，
+//    保留全部码率档位，只把最高码率放在首位，避免网络下降时无低码率可退。
+%hook AWEVideoModel
+
+- (NSArray *)bitrateModels {
+    NSArray *models = %orig;
+    if (!DYToolsBasicBool(@"DYYYEnableVideoHighestQuality") ||
+        ![models isKindOfClass:NSArray.class] || models.count < 2) {
+        return models;
+    }
+
+    return [models sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
+        NSInteger left = 0;
+        NSInteger right = 0;
+        @try {
+            left = [[a valueForKey:@"bitrate"] integerValue];
+            right = [[b valueForKey:@"bitrate"] integerValue];
+        } @catch (__unused NSException *e) {
+        }
+        if (left == right) return NSOrderedSame;
+        return left > right ? NSOrderedAscending : NSOrderedDescending;
+    }];
+}
+
+- (id)playURL {
+    if (!DYToolsBasicBool(@"DYYYEnableVideoHighestQuality")) {
+        return %orig;
+    }
+
+    NSArray *models = nil;
+    @try {
+        models = [self bitrateModels];
+    } @catch (__unused NSException *e) {
+    }
+
+    id best = nil;
+    NSInteger bestBitrate = -1;
+    for (id model in models) {
+        NSInteger bitrate = -1;
+        @try {
+            bitrate = [[model valueForKey:@"bitrate"] integerValue];
+        } @catch (__unused NSException *e) {
+        }
+        if (bitrate > bestBitrate) {
+            bestBitrate = bitrate;
+            best = model;
+        }
+    }
+
+    if (best) {
+        id playAddr = nil;
+        @try {
+            playAddr = [best valueForKey:@"playAddr"];
+        } @catch (__unused NSException *e) {
+        }
+        if (playAddr) return playAddr;
+    }
+
+    return %orig;
+}
+
+// DYYY 视频背景色
+- (UIColor *)awe_smartBackgroundColor {
+    if (DYToolsBasicBool(@"DYYYVideoBGColor")) {
+        UIColor *color = DYToolsBasicColorFromHex(
+            [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYVideoBGColor"]);
+        if (color) return color;
+    }
+    return %orig;
+}
+
+%end
+
+// 2. 禁用双击点赞：DYYY 同时处理这两个实际点击入口。
+%hook AFDPureModePageTapController
+- (void)onVideoPlayerViewDoubleClicked:(id)arg1 {
+    if (DYToolsBasicBool(@"DYYYDisableDoubleTapLike")) return;
+    %orig(arg1);
+}
+%end
+
+%hook AWEPlayInteractionViewController
+- (void)onVideoPlayerViewDoubleClicked:(id)arg1 {
+    if (DYToolsBasicBool(@"DYYYDisableDoubleTapLike")) return;
+    %orig(arg1);
+}
+%end
+
+// 3. 隐藏视频进度：DYYY 的 AWEFeedProgressSlider 实际 Hook。
+%hook AWEFeedProgressSlider
+- (void)setAlpha:(CGFloat)alpha {
+    if (DYToolsBasicBool(@"DYYYHideVideoProgress")) {
+        %orig(0.0);
+        return;
+    }
+    %orig(alpha);
+}
+- (void)setHidden:(BOOL)hidden {
+    %orig(hidden);
+    if (DYToolsBasicBool(@"DYYYHideVideoProgress") && !hidden) {
+        self.alpha = 0.0;
+    }
+}
+%end
+
+// 4. 默认倍速：使用 DYYY 同一套播放器入口，但采用动态 selector，
+//    避免给 40.4.0 引入旧版本私有头文件。
+static void DYToolsApplyBasicPlaybackSpeed(id player) {
+    if (!player || !DYToolsBasicBool(@"DYYYDefaultSpeed")) return;
+
+    NSString *raw = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"];
+    if (![raw isKindOfClass:NSString.class]) return;
+
+    NSString *clean = [raw stringByReplacingOccurrencesOfString:@"x" withString:@""];
+    float speed = clean.floatValue;
+    if (!isfinite(speed) || speed <= 0.0f) return;
+
+    SEL setter = NSSelectorFromString(@"setPlaybackRate:");
+    SEL getter = NSSelectorFromString(@"playbackRate");
+    if (![player respondsToSelector:setter]) return;
+
+    @try {
+        ((void (*)(id, SEL, float))objc_msgSend)(player, setter, speed);
+        if ([player respondsToSelector:getter]) {
+            ((float (*)(id, SEL))objc_msgSend)(player, getter);
+        }
+    } @catch (__unused NSException *e) {
+    }
+}
+
+%hook AWEAwemePlayVideoViewController
+- (void)prepareForDisplay {
+    %orig;
+    DYToolsApplyBasicPlaybackSpeed(self);
+}
+- (void)setIsAutoPlay:(BOOL)arg0 {
+    %orig(arg0);
+    DYToolsApplyBasicPlaybackSpeed(self);
+}
+%end
+
+%hook AWEDPlayerFeedPlayerViewController
+- (void)prepareForDisplay {
+    %orig;
+    DYToolsApplyBasicPlaybackSpeed(self);
+}
+- (void)setIsAutoPlay:(BOOL)arg0 {
+    %orig(arg0);
+    DYToolsApplyBasicPlaybackSpeed(self);
+}
+%end
+
+%hook AWEDPlayerViewController_Merge
+- (void)prepareForDisplay {
+    %orig;
+    DYToolsApplyBasicPlaybackSpeed(self);
+}
+- (void)setIsAutoPlay:(BOOL)arg0 {
+    %orig(arg0);
+    DYToolsApplyBasicPlaybackSpeed(self);
+}
+%end
+
+// 5. 隐藏系统顶栏：按 DYYY 的实际控制器范围迁移。
+%hook AWEFeedRootViewController
+- (BOOL)prefersStatusBarHidden {
+    if (DYToolsBasicBool(@"DYYYHideStatusbar")) return YES;
+    return %orig;
+}
+%end
+
+%hook IESLiveAudienceViewController
+- (BOOL)prefersStatusBarHidden {
+    if (DYToolsBasicBool(@"DYYYHideStatusbar")) return YES;
+    return %orig;
+}
+%end
+
+%hook AWEAwemeDetailTableViewController
+- (BOOL)prefersStatusBarHidden {
+    if (DYToolsBasicBool(@"DYYYHideStatusbar")) return YES;
+    return %orig;
+}
+%end
+
+%hook AWEAwemeHotSpotTableViewController
+- (BOOL)prefersStatusBarHidden {
+    if (DYToolsBasicBool(@"DYYYHideStatusbar")) return YES;
+    return %orig;
+}
+%end
+
+%hook AWEFullPageFeedNewContainerViewController
+- (BOOL)prefersStatusBarHidden {
+    if (DYToolsBasicBool(@"DYYYHideStatusbar")) return YES;
+    return %orig;
+}
+%end
+
+%hook AFDPureModePageContainerViewController
+- (BOOL)prefersStatusBarHidden {
+    if (DYToolsBasicBool(@"DYYYHideStatusbar")) return YES;
+    return %orig;
+}
+%end
+
+// 6. 弹幕改色：DYYY 的 AWEDanmakuContentLabel 实际 Hook。
+%hook AWEDanmakuContentLabel
+- (void)setTextColor:(UIColor *)textColor {
+    if (DYToolsBasicBool(@"DYYYEnableDanmuColor")) {
+        UIColor *color = DYToolsBasicColorFromHex(
+            [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDanmuColor"]);
+        if (color) {
+            %orig(color);
+            return;
+        }
+    }
+    %orig(textColor);
+}
+- (void)setStrokeWidth:(double)strokeWidth {
+    if (DYToolsBasicBool(@"DYYYEnableDanmuColor")) {
+        %orig(FLT_MIN);
+        return;
+    }
+    %orig(strokeWidth);
+}
+- (void)setStrokeColor:(UIColor *)strokeColor {
+    if (DYToolsBasicBool(@"DYYYEnableDanmuColor")) {
+        %orig(nil);
+        return;
+    }
+    %orig(strokeColor);
+}
+%end

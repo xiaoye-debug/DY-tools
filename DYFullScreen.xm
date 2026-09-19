@@ -1159,7 +1159,7 @@ static void DYToolsRefreshLayout(void) {
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 3;
+    return 1;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -1199,23 +1199,6 @@ static void DYToolsRefreshLayout(void) {
         return cell;
     }
 
-    if (indexPath.section == 1 && indexPath.row == 0) {
-        cell.textLabel.text = @"GitHub";
-        cell.detailTextLabel.text = kDYToolsGitHubURL;
-        cell.imageView.image = [UIImage systemImageNamed:@"link"];
-        return cell;
-    }
-
-    if (indexPath.section == 1 && indexPath.row == 1) {
-        cell.textLabel.text = @"分享 DY-tools";
-        cell.detailTextLabel.text = @"分享插件 GitHub 地址";
-        cell.imageView.image = [UIImage systemImageNamed:@"square.and.arrow.up"];
-        return cell;
-    }
-
-    cell.textLabel.text = @"在浏览器打开";
-    cell.detailTextLabel.text = @"打开 DY-tools GitHub 网页";
-    cell.imageView.image = [UIImage systemImageNamed:@"safari"];
     return cell;
 }
 
@@ -1224,19 +1207,7 @@ didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
 
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
 
-    if (indexPath.section == 1 && indexPath.row == 0) {
-        DYToolsOpenGitHub();
-        return;
-    }
 
-    if (indexPath.section == 1 && indexPath.row == 1) {
-        DYToolsShare();
-        return;
-    }
-
-    if (indexPath.section == 2 && indexPath.row == 0) {
-        DYToolsOpenGitHub();
-    }
 }
 
 @end

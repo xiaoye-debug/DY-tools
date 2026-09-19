@@ -14,7 +14,7 @@ static NSString *const kDYToolsRemoveRelatedSearchKey = @"DYToolsRemoveRelatedSe
 static NSString *const kDYToolsRemoveHotspotKey = @"DYToolsRemoveHotspot";
 static NSString *const kDYToolsHideEnterLiveKey = @"DYToolsHideEnterLive";
 static NSString *const kDYToolsDisableAutoEnterLiveKey = @"DYToolsDisableAutoEnterLive";
-static NSString *const kDYToolsHideSearchSameKey = @"DYToolsHideSearchSame";
+static NSString *const kDYToolsHideMusicButtonKey = @"DYToolsHideMusicButton";
 static NSString *const kDYToolsHideLocationKey = @"DYToolsHideLocation";
 
 
@@ -39,8 +39,10 @@ BOOL DYFSIsEnabled(void) {
     if ([defaults objectForKey:kDYToolsDisableAutoEnterLiveKey] == nil) {
         [defaults setBool:NO forKey:kDYToolsDisableAutoEnterLiveKey];
     }
-    if ([defaults objectForKey:kDYToolsHideSearchSameKey] == nil) {
-        [defaults setBool:NO forKey:kDYToolsHideSearchSameKey];
+    // Migrate the old temporary key once, so existing installations keep their setting.
+    if ([defaults objectForKey:kDYToolsHideMusicButtonKey] == nil) {
+        BOOL oldValue = [defaults boolForKey:@"DYToolsHideSearchSame"];
+        [defaults setBool:oldValue forKey:kDYToolsHideMusicButtonKey];
     }
     if ([defaults objectForKey:kDYToolsHideLocationKey] == nil) {
         [defaults setBool:NO forKey:kDYToolsHideLocationKey];
@@ -1146,7 +1148,7 @@ static BOOL DYToolsBool(NSString *key) {
 
 %end
 
-#pragma mark - 直播间 / 拍同款 / 位置栏
+#pragma mark - 直播间 / 音乐入口 / 位置栏
 
 // DYYY 已验证：隐藏视频流中的“点击进入直播间”提示。
 @interface AWELiveFeedStatusLabel : UILabel
@@ -1189,17 +1191,44 @@ static BOOL DYToolsBool(NSString *key) {
 
 %end
 
-// DYYY 的“隐藏搜索同款”实际处理 ACCStickerContainerView。
-// 这里对应视频页“拍同款”入口，而不是文字扫描。
-@interface ACCStickerContainerView : UIView
+// DYYY 的“隐藏音乐按钮”实际处理这两个业务 View：
+// 1. AWEMusicCoverButton：视频原声/音乐入口
+// 2. AWEPlayInteractionListenFeedView：拍同款相关入口
+@interface AWEMusicCoverButton : UIView
 @end
 
-%hook ACCStickerContainerView
+%hook AWEMusicCoverButton
 
 - (void)layoutSubviews {
     %orig;
 
-    if (DYToolsBool(kDYToolsHideSearchSameKey)) {
+    if (!DYToolsBool(kDYToolsHideMusicButtonKey)) {
+        return;
+    }
+
+    NSString *accessibilityLabel = self.accessibilityLabel;
+    if ([accessibilityLabel isEqualToString:@"音乐详情"]) {
+        UIView *parent = self.superview;
+        if (parent) {
+            [parent removeFromSuperview];
+        } else {
+            [self removeFromSuperview];
+        }
+        return;
+    }
+}
+
+%end
+
+@interface AWEPlayInteractionListenFeedView : UIView
+@end
+
+%hook AWEPlayInteractionListenFeedView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(kDYToolsHideMusicButtonKey)) {
         [self removeFromSuperview];
         return;
     }
@@ -1208,6 +1237,7 @@ static BOOL DYToolsBool(NSString *key) {
 %end
 
 // DYYY 的“隐藏视频定位”实际处理 AWEMarkView。
+// 保持与 DYYY 相同的业务 Hook：AWEMarkView + layoutSubviews。
 @interface AWEMarkView : UIView
 @property(nonatomic,readonly) UILabel *markLabel;
 @end
@@ -1272,7 +1302,7 @@ static UIViewController *DYToolsTopViewController(void) {
     UISwitch *_removeHotspotSwitch;
     UISwitch *_hideEnterLiveSwitch;
     UISwitch *_disableAutoEnterLiveSwitch;
-    UISwitch *_hideSearchSameSwitch;
+    UISwitch *_hideMusicButtonSwitch;
     UISwitch *_hideLocationSwitch;
 }
 
@@ -1281,6 +1311,8 @@ static UIViewController *DYToolsTopViewController(void) {
 
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.title = @"DY-tools";
+    self.navigationController.navigationBar.prefersLargeTitles = YES;
+    self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
 
     self.navigationItem.leftBarButtonItem =
         [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose
@@ -1292,6 +1324,10 @@ static UIViewController *DYToolsTopViewController(void) {
                                      style:UITableViewStyleInsetGrouped];
     table.translatesAutoresizingMaskIntoConstraints = NO;
     table.backgroundColor = UIColor.clearColor;
+    table.separatorStyle = UITableViewCellSeparatorStyleSingleLine;
+    table.separatorInset = UIEdgeInsetsMake(0.0, 16.0, 0.0, 16.0);
+    table.showsVerticalScrollIndicator = NO;
+    table.rowHeight = 52.0;
     table.dataSource = (id<UITableViewDataSource>)self;
     table.delegate = (id<UITableViewDelegate>)self;
     [self.view addSubview:table];
@@ -1333,15 +1369,30 @@ static UIViewController *DYToolsTopViewController(void) {
     [_disableAutoEnterLiveSwitch addTarget:self action:@selector(dy_disableAutoEnterLiveChanged:)
                     forControlEvents:UIControlEventValueChanged];
 
-    _hideSearchSameSwitch = [UISwitch new];
-    _hideSearchSameSwitch.on = DYToolsBool(kDYToolsHideSearchSameKey);
-    [_hideSearchSameSwitch addTarget:self action:@selector(dy_hideSearchSameChanged:)
+    _hideMusicButtonSwitch = [UISwitch new];
+    _hideMusicButtonSwitch.on = DYToolsBool(kDYToolsHideMusicButtonKey);
+    [_hideMusicButtonSwitch addTarget:self action:@selector(dy_hideMusicButtonChanged:)
                     forControlEvents:UIControlEventValueChanged];
 
     _hideLocationSwitch = [UISwitch new];
     _hideLocationSwitch.on = DYToolsBool(kDYToolsHideLocationKey);
     [_hideLocationSwitch addTarget:self action:@selector(dy_hideLocationChanged:)
                     forControlEvents:UIControlEventValueChanged];
+
+    NSArray *switches = @[
+        _fullscreenSwitch,
+        _removeShuiTingSwitch,
+        _removeRelatedSearchSwitch,
+        _removeHotspotSwitch,
+        _hideEnterLiveSwitch,
+        _disableAutoEnterLiveSwitch,
+        _hideMusicButtonSwitch,
+        _hideLocationSwitch
+    ];
+    for (UISwitch *sw in switches) {
+        sw.onTintColor = UIColor.systemBlueColor;
+        sw.transform = CGAffineTransformMakeScale(0.92, 0.92);
+    }
 }
 
 - (void)dy_close {
@@ -1380,8 +1431,8 @@ static UIViewController *DYToolsTopViewController(void) {
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
-- (void)dy_hideSearchSameChanged:(UISwitch *)sender {
-    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsHideSearchSameKey];
+- (void)dy_hideMusicButtonChanged:(UISwitch *)sender {
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsHideMusicButtonKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
@@ -1391,19 +1442,46 @@ static UIViewController *DYToolsTopViewController(void) {
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 2;
+    return 3;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? 1 : 7;
+    switch (section) {
+        case 0: return 1; // Fullscreen
+        case 1: return 4; // Video
+        case 2: return 3; // Live / interaction
+        default: return 0;
+    }
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return section == 0 ? @"全屏功能" : @"界面";
+    switch (section) {
+        case 0: return @"全屏";
+        case 1: return @"视频界面";
+        case 2: return @"直播与互动";
+        default: return nil;
+    }
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return nil;
+    switch (section) {
+        case 0: return @"开启后，视频播放区域会使用全屏布局。";
+        case 1: return @"用于整理视频页面中不需要的辅助入口和信息。";
+        case 2: return @"用于处理直播入口及直播自动跳转行为。";
+        default: return nil;
+    }
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+    return 52.0;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
+    return 38.0;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
+    return 38.0;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView
@@ -1413,47 +1491,63 @@ static UIViewController *DYToolsTopViewController(void) {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
 
     if (!cell) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
                                       reuseIdentifier:reuse];
     }
 
     cell.accessoryView = nil;
     cell.accessoryType = UITableViewCellAccessoryNone;
-    cell.imageView.image = nil;
-    cell.detailTextLabel.text = nil;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+
+    cell.textLabel.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightRegular];
+    cell.textLabel.textColor = UIColor.labelColor;
+    cell.textLabel.numberOfLines = 1;
+
+    UISwitch *sw = nil;
 
     if (indexPath.section == 0) {
         cell.textLabel.text = @"视频全屏";
-        cell.accessoryView = _fullscreenSwitch;
-        return cell;
+        sw = _fullscreenSwitch;
+    } else if (indexPath.section == 1) {
+        switch (indexPath.row) {
+            case 0:
+                cell.textLabel.text = @"移除汽水听";
+                sw = _removeShuiTingSwitch;
+                break;
+            case 1:
+                cell.textLabel.text = @"移除相关搜索";
+                sw = _removeRelatedSearchSwitch;
+                break;
+            case 2:
+                cell.textLabel.text = @"移除热点栏";
+                sw = _removeHotspotSwitch;
+                break;
+            case 3:
+                cell.textLabel.text = @"隐藏音乐按钮";
+                sw = _hideMusicButtonSwitch;
+                break;
+        }
+    } else {
+        switch (indexPath.row) {
+            case 0:
+                cell.textLabel.text = @"去除进入直播间提示";
+                sw = _hideEnterLiveSwitch;
+                break;
+            case 1:
+                cell.textLabel.text = @"禁止自动进入直播间";
+                sw = _disableAutoEnterLiveSwitch;
+                break;
+            case 2:
+                cell.textLabel.text = @"去除视频位置栏";
+                sw = _hideLocationSwitch;
+                break;
+        }
     }
 
-    if (indexPath.section == 1) {
-        if (indexPath.row == 0) {
-            cell.textLabel.text = @"移除文案下方去汽水听";
-            cell.accessoryView = _removeShuiTingSwitch;
-        } else if (indexPath.row == 1) {
-            cell.textLabel.text = @"移除文案下相关搜索";
-            cell.accessoryView = _removeRelatedSearchSwitch;
-        } else if (indexPath.row == 2) {
-            cell.textLabel.text = @"移除文案下方热点栏";
-            cell.accessoryView = _removeHotspotSwitch;
-        } else if (indexPath.row == 3) {
-            cell.textLabel.text = @"去除点击进入直播间";
-            cell.accessoryView = _hideEnterLiveSwitch;
-        } else if (indexPath.row == 4) {
-            cell.textLabel.text = @"禁止自动进入直播间";
-            cell.accessoryView = _disableAutoEnterLiveSwitch;
-        } else if (indexPath.row == 5) {
-            cell.textLabel.text = @"视频页去除拍同款";
-            cell.accessoryView = _hideSearchSameSwitch;
-        } else if (indexPath.row == 6) {
-            cell.textLabel.text = @"视频页去除位置栏";
-            cell.accessoryView = _hideLocationSwitch;
-        } else {
-            cell.textLabel.text = @"";
-        }
-        return cell;
+    if (sw) {
+        sw.onTintColor = UIColor.systemBlueColor;
+        cell.accessoryView = sw;
     }
 
     return cell;

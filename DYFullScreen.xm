@@ -729,7 +729,7 @@ static void DYFSApplyLivePreviewLift(AWELivePreStream4LayerContainerView *contai
 - (void)layoutSubviews {
     %orig;
     if (!DYFSIsEnabled()) return;
-    for (UIView *v in self.subviews) {
+    for (UIView *v in [(UIView *)self subviews]) {
         if (![v isMemberOfClass:UIView.class]) continue;
         UIColor *c=v.backgroundColor;
         CGFloat h,s,b,a;
@@ -3982,9 +3982,9 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 - (void)viewDidLayoutSubviews {
     %orig;
     if (!DYToolsBool(@"DYYYEnableCommentBlur")) return;
-    if (![self isKindOfClass:NSClassFromString(@"AWECommentPanelContainerSwiftImpl.CommentContainerInnerViewController")]) return;
+    if (![(id)self isKindOfClass:NSClassFromString(@"AWECommentPanelContainerSwiftImpl.CommentContainerInnerViewController")]) return;
 
-    UIView *view = self.view;
+    UIView *view = [(UIViewController *)self view];
     if (!view) return;
     NSInteger tag = 190721;
     UIVisualEffectView *blur = [view viewWithTag:tag];

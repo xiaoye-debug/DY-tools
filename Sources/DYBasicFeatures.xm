@@ -534,6 +534,23 @@ static BOOL DYToolsSpeedGestureActive = NO;
 
 %hook AWEPlayInteractionViewController
 
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    DYToolsInstallFloatSpeedButton(self);
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFloatSpeedButton"]) {
+        DYToolsInstallFloatSpeedButton(self);
+    }
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    DYToolsRemoveFloatSpeedButton();
+    %orig;
+}
+
 - (void)onVideoPlayerViewDoubleClicked:(id)arg1 {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableDoubleTapLike"]) {
         return;
@@ -542,6 +559,204 @@ static BOOL DYToolsSpeedGestureActive = NO;
 }
 
 %end
+
+
+
+#pragma mark - 快捷倍速悬浮按钮
+
+@interface DYToolsFloatSpeedButton : UIButton
+@property(nonatomic, weak) UIViewController *interactionController;
+@property(nonatomic, assign) BOOL locked;
+@end
+
+@implementation DYToolsFloatSpeedButton
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.35];
+        self.layer.cornerRadius = frame.size.width / 2.0;
+        self.layer.borderWidth = 1.0;
+        self.layer.borderColor = [[UIColor whiteColor] colorWithAlphaComponent:0.25].CGColor;
+        self.clipsToBounds = YES;
+        self.titleLabel.font = [UIFont boldSystemFontOfSize:13.0];
+        [self setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+        self.accessibilityLabel = @"DY-tools快捷倍速";
+        self.alpha = 0.55;
+        self.userInteractionEnabled = YES;
+
+        UILongPressGestureRecognizer *longPress =
+            [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(dy_longPress:)];
+        longPress.minimumPressDuration = 0.5;
+        [self addGestureRecognizer:longPress];
+
+        UIPanGestureRecognizer *pan =
+            [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(dy_pan:)];
+        [self addGestureRecognizer:pan];
+
+        [self addTarget:self action:@selector(dy_tap) forControlEvents:UIControlEventTouchUpInside];
+    }
+    return self;
+}
+
+- (void)dy_updateTitle {
+    NSArray *speeds = @[@0.75, @1.0, @1.25, @1.5, @2.0, @2.5, @3.0];
+    NSInteger index = [[NSUserDefaults standardUserDefaults] integerForKey:@"DYYYCurrentSpeedIndex"];
+    if (index < 0 || index >= (NSInteger)speeds.count) index = 1;
+
+    double speed = [speeds[index] doubleValue];
+    NSString *title = (fabs(speed - floor(speed)) < 0.001)
+        ? [NSString stringWithFormat:@"%.0f", speed]
+        : [NSString stringWithFormat:@"%.2f", speed];
+    [self setTitle:title forState:UIControlStateNormal];
+}
+
+- (void)dy_applySpeed:(double)speed {
+    UIViewController *controller = self.interactionController;
+    if (!controller) return;
+
+    __block UIViewController *player = nil;
+    void (^findPlayer)(UIViewController *) = ^(UIViewController *vc) {
+        if (!vc || player) return;
+        NSString *name = NSStringFromClass([vc class]);
+        if ([name isEqualToString:@"AWEAwemePlayVideoViewController"] ||
+            [name isEqualToString:@"AWEDPlayerFeedPlayerViewController"]) {
+            if ([vc respondsToSelector:@selector(setVideoControllerPlaybackRate:)]) {
+                player = vc;
+                return;
+            }
+        }
+        for (UIViewController *child in vc.childViewControllers) {
+            findPlayer(child);
+            if (player) return;
+        }
+    };
+    findPlayer(controller);
+
+    if (!player && [controller respondsToSelector:@selector(setVideoControllerPlaybackRate:)]) {
+        player = controller;
+    }
+
+    if (player) {
+        @try {
+            ((void (*)(id, SEL, float))objc_msgSend)(player, @selector(setVideoControllerPlaybackRate:), (float)speed);
+        } @catch (__unused NSException *e) {
+        }
+    }
+}
+
+- (void)dy_tap {
+    NSArray *speeds = @[@0.75, @1.0, @1.25, @1.5, @2.0, @2.5, @3.0];
+    NSInteger index = [[NSUserDefaults standardUserDefaults] integerForKey:@"DYYYCurrentSpeedIndex"];
+    index = (index + 1) % speeds.count;
+    [[NSUserDefaults standardUserDefaults] setInteger:index forKey:@"DYYYCurrentSpeedIndex"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+
+    [self dy_updateTitle];
+    [self dy_applySpeed:[speeds[index] doubleValue]];
+}
+
+- (void)dy_longPress:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        self.locked = !self.locked;
+        [[NSUserDefaults standardUserDefaults] setBool:self.locked forKey:@"DYYYSpeedButtonLocked"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        self.alpha = self.locked ? 0.85 : 0.55;
+    }
+}
+
+- (void)dy_pan:(UIPanGestureRecognizer *)gesture {
+    if (self.locked || !self.superview) return;
+
+    if (gesture.state == UIGestureRecognizerStateBegan ||
+        gesture.state == UIGestureRecognizerStateChanged) {
+        CGPoint p = [gesture locationInView:self.superview];
+        CGFloat halfW = self.bounds.size.width / 2.0;
+        CGFloat halfH = self.bounds.size.height / 2.0;
+        p.x = MAX(halfW + 4.0, MIN(CGRectGetWidth(self.superview.bounds) - halfW - 4.0, p.x));
+        p.y = MAX(halfH + 4.0, MIN(CGRectGetHeight(self.superview.bounds) - halfH - 4.0, p.y));
+        self.center = p;
+    }
+
+    if (gesture.state == UIGestureRecognizerStateEnded ||
+        gesture.state == UIGestureRecognizerStateCancelled) {
+        UIView *root = self.superview;
+        if (root) {
+            [[NSUserDefaults standardUserDefaults] setFloat:self.center.x / CGRectGetWidth(root.bounds)
+                                                      forKey:@"DYYYSpeedButtonCenterXPercent"];
+            [[NSUserDefaults standardUserDefaults] setFloat:self.center.y / CGRectGetHeight(root.bounds)
+                                                      forKey:@"DYYYSpeedButtonCenterYPercent"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+        }
+    }
+}
+
+@end
+
+static __weak DYToolsFloatSpeedButton *gDYToolsFloatSpeedButton = nil;
+
+static void DYToolsRemoveFloatSpeedButton(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [gDYToolsFloatSpeedButton removeFromSuperview];
+        gDYToolsFloatSpeedButton = nil;
+    });
+}
+
+static void DYToolsInstallFloatSpeedButton(UIViewController *controller) {
+    if (!controller || ![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFloatSpeedButton"]) {
+        DYToolsRemoveFloatSpeedButton();
+        return;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFloatSpeedButton"]) {
+            [gDYToolsFloatSpeedButton removeFromSuperview];
+            gDYToolsFloatSpeedButton = nil;
+            return;
+        }
+
+        UIWindow *window = nil;
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *ws = (UIWindowScene *)scene;
+            if (ws.activationState != UISceneActivationStateForegroundActive &&
+                ws.activationState != UISceneActivationStateForegroundInactive) continue;
+            for (UIWindow *candidate in ws.windows) {
+                if (candidate.hidden || candidate.alpha <= 0.01 || candidate.bounds.size.width <= 0) continue;
+                if (!window || candidate.isKeyWindow) window = candidate;
+                if (candidate.isKeyWindow) break;
+            }
+            if (window) break;
+        }
+
+        if (!window) return;
+
+        DYToolsFloatSpeedButton *button = gDYToolsFloatSpeedButton;
+        if (!button || button.superview != window) {
+            [button removeFromSuperview];
+            CGFloat size = 36.0;
+            button = [[DYToolsFloatSpeedButton alloc] initWithFrame:CGRectMake(0, 0, size, size)];
+            gDYToolsFloatSpeedButton = button;
+            [window addSubview:button];
+
+            float xp = [[NSUserDefaults standardUserDefaults] floatForKey:@"DYYYSpeedButtonCenterXPercent"];
+            float yp = [[NSUserDefaults standardUserDefaults] floatForKey:@"DYYYSpeedButtonCenterYPercent"];
+            if (xp > 0.0f && yp > 0.0f) {
+                button.center = CGPointMake(xp * CGRectGetWidth(window.bounds),
+                                            yp * CGRectGetHeight(window.bounds));
+            } else {
+                button.center = CGPointMake(CGRectGetWidth(window.bounds) - 42.0,
+                                            CGRectGetMidY(window.bounds));
+            }
+            button.locked = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYSpeedButtonLocked"];
+            button.alpha = button.locked ? 0.85 : 0.55;
+        }
+
+        button.interactionController = controller;
+        [button dy_updateTitle];
+        [window bringSubviewToFront:button];
+    });
+}
 
 
 #pragma mark - 显示视频进度时长

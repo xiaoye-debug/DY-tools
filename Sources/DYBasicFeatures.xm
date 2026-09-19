@@ -341,3 +341,176 @@
 }
 
 %end
+
+
+#pragma mark - 倍速与首页交互补充
+
+@interface AWEPlayInteractionSpeedController : NSObject
+- (void)changeSpeed:(double)speed;
+- (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture;
+@end
+
+static BOOL DYToolsSpeedGestureActive = NO;
+static CGFloat DYToolsGestureSpeed = 2.0;
+static CGFloat DYToolsInitialTouchY = 0.0;
+
+%hook AWEPlayInteractionSpeedController
+
+- (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableLongPressSpeedGesture"]) {
+        return;
+    }
+
+    CGPoint point = [gesture locationInView:gesture.view];
+
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        DYToolsInitialTouchY = point.y;
+        DYToolsSpeedGestureActive = YES;
+
+        CGFloat configured = [[NSUserDefaults standardUserDefaults] floatForKey:@"DYYYLongPressSpeed"];
+        DYToolsGestureSpeed = configured > 0.0 ? configured : 2.0;
+        [self changeSpeed:DYToolsGestureSpeed];
+        return;
+    }
+
+    if (gesture.state == UIGestureRecognizerStateChanged && DYToolsSpeedGestureActive) {
+        CGFloat deltaY = point.y - DYToolsInitialTouchY;
+        if (fabs(deltaY) >= 10.0) {
+            CGFloat nextSpeed = DYToolsGestureSpeed + (deltaY > 0.0 ? -0.25 : 0.25);
+            nextSpeed = MAX(0.5, MIN(3.0, nextSpeed));
+
+            if (fabs(nextSpeed - DYToolsGestureSpeed) > 0.001) {
+                DYToolsGestureSpeed = nextSpeed;
+                DYToolsInitialTouchY = point.y;
+                [self changeSpeed:DYToolsGestureSpeed];
+            }
+        }
+        return;
+    }
+
+    if (gesture.state == UIGestureRecognizerStateEnded ||
+        gesture.state == UIGestureRecognizerStateCancelled ||
+        gesture.state == UIGestureRecognizerStateFailed) {
+        DYToolsSpeedGestureActive = NO;
+        DYToolsInitialTouchY = 0.0;
+    }
+}
+
+%end
+
+#pragma mark - 自动恢复默认倍速
+
+@interface AWEAwemePlayVideoViewController : UIViewController
+- (void)setVideoControllerPlaybackRate:(float)rate;
+@end
+
+%hook AWEAwemePlayVideoViewController
+
+- (void)prepareForDisplay {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYAutoRestoreSpeed"]) {
+        return;
+    }
+
+    @try {
+        [self setVideoControllerPlaybackRate:1.0f];
+    } @catch (__unused NSException *e) {
+    }
+}
+
+%end
+
+@interface AWEDPlayerFeedPlayerViewController : UIViewController
+- (void)setVideoControllerPlaybackRate:(float)rate;
+@end
+
+%hook AWEDPlayerFeedPlayerViewController
+
+- (void)prepareForDisplay {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYAutoRestoreSpeed"]) {
+        return;
+    }
+
+    @try {
+        [self setVideoControllerPlaybackRate:1.0f];
+    } @catch (__unused NSException *e) {
+    }
+}
+
+%end
+
+#pragma mark - 禁用双击视频点赞
+
+@interface AFDPureModePageTapController : NSObject
+- (void)onVideoPlayerViewDoubleClicked:(id)arg1;
+@end
+
+%hook AFDPureModePageTapController
+
+- (void)onVideoPlayerViewDoubleClicked:(id)arg1 {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableDoubleTapLike"]) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+@interface AWEPlayInteractionViewController : UIViewController
+- (void)onVideoPlayerViewDoubleClicked:(id)arg1;
+@end
+
+%hook AWEPlayInteractionViewController
+
+- (void)onVideoPlayerViewDoubleClicked:(id)arg1 {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableDoubleTapLike"]) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+#pragma mark - 禁用点击首页刷新
+
+@interface AWENormalModeTabBar : UIView
+@end
+
+%hook AWENormalModeTabBar
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableHomeRefresh"]) {
+        return;
+    }
+
+    Class buttonClass = NSClassFromString(@"AWENormalModeTabBarGeneralButton");
+    if (!buttonClass) {
+        return;
+    }
+
+    for (UIView *subview in self.subviews) {
+        if (![subview isKindOfClass:buttonClass]) {
+            continue;
+        }
+
+        if ([subview.accessibilityLabel isEqualToString:@"首页"]) {
+            NSInteger status = 0;
+            @try {
+                status = [[subview valueForKey:@"status"] integerValue];
+            } @catch (__unused NSException *e) {
+            }
+
+            // DYYY 原逻辑：首页处于选中状态时禁止再次点击触发刷新。
+            subview.userInteractionEnabled = (status != 2);
+        }
+    }
+}
+
+%end

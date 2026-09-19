@@ -3457,7 +3457,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"时间标签颜色",@"key":@"DYYYLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient",@"type":@"switch"},
         @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar",@"type":@"switch"},@{@"title":@"关注二次确认",@"key":@"DYYYFollowTips",@"type":@"switch"},
         @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips",@"type":@"switch"},@{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality",@"type":@"picker"},
-        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},
+        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},@{@"title":@"显示开播时长",@"key":@"DYYYEnableLiveRealCount",@"type":@"switch"},@{@"title":@"禁用访客记录上传",@"key":@"DYYYDisableProfileVisitRecordUpload",@"type":@"switch"},@{@"title":@"禁用作品浏览记录上传",@"key":@"DYYYDisableFeedHistoryUpload",@"type":@"switch"},@{@"title":@"小程序跳广告",@"key":@"DYYYMiniProgramSkipAd",@"type":@"switch"},
         @{@"title":@"评论具体时间",@"key":@"DYYYCommentExactTime",@"type":@"switch"},
         @{@"title":@"屏蔽灵动岛抖音播放信息",@"key":@"DYYYDisableFeedNowPlayingInfo",@"type":@"switch"}
         ]} 
@@ -4009,7 +4009,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
  add(@"移除音乐按钮",kDYToolsHideMusicButtonKey,@"视频设置",@"video");
  add(@"移除视频位置",@"DYYYHideLocation",@"视频设置",@"video");
  NSArray *b=@[
- @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"],@[@"评论具体时间",@"DYYYCommentExactTime"],@[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo"]];
+ @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"],@[@"评论具体时间",@"DYYYCommentExactTime"],@[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo"],@[@"显示开播时长",@"DYYYEnableLiveRealCount"],@[@"禁用访客记录上传",@"DYYYDisableProfileVisitRecordUpload"],@[@"禁用作品浏览记录上传",@"DYYYDisableFeedHistoryUpload"],@[@"小程序跳广告",@"DYYYMiniProgramSkipAd"]];
  for(NSArray*x in b)add(x[0],x[1],@"基本设置",@"basic");
  NSArray*t=@[@"推荐",@"DYYYHideHotContainer",@"朋友",@"DYYYHideFriend",@"关注",@"DYYYHideFollow",@"精选",@"DYYYHideMediumVideo",@"商城",@"DYYYHideMall",@"同城",@"DYYYHideNearby",@"团购",@"DYYYHideGroupon",@"直播",@"DYYYHideTabLive",@"热点",@"DYYYHidePadHot",@"经验",@"DYYYHideHangout",@"短剧",@"DYYYHidePlaylet",@"看剧",@"DYYYHideCinema",@"少儿",@"DYYYHideKidsV2",@"游戏",@"DYYYHideGame"];
  for(NSUInteger i=0;i+1<t.count;i+=2)add([NSString stringWithFormat:@"移除%@",t[i]],t[i+1],@"顶栏移除",@"top");
@@ -4203,6 +4203,59 @@ static void DYToolsClearNowPlayingInfo(void) {
         return;
     }
     %orig(state);
+}
+%end
+
+#pragma mark - DYYY Privacy / Live / Mini Program Migration
+
+%hook AWEProfileUserDetailComponent
+- (void)reportUserDetailVisitIfNeeded:(id)user {
+    if (DYToolsBool(@"DYYYDisableProfileVisitRecordUpload")) return;
+    %orig;
+}
+%end
+
+%hook AWEProfileRecordHelper
++ (void)postProfileRecordWithParams:(id)params completionBlock:(id)completionBlock {
+    if (DYToolsBool(@"DYYYDisableProfileVisitRecordUpload")) return;
+    %orig;
+}
+%end
+
+// 作品浏览记录上传：覆盖 40.x 常见的历史记录入口。
+%hook AWEAwemeStatusModel
+- (void)setHasBeenViewed:(BOOL)value {
+    if (DYToolsBool(@"DYYYDisableFeedHistoryUpload")) {
+        %orig(NO);
+        return;
+    }
+    %orig(value);
+}
+%end
+
+// DYYY 的“直播真实人数”开关实际用于显示直播具体在线人数；
+// 同时提供开播时长的兼容入口，不改变默认行为。
+%hook HTSLiveRoomStatsMessage
+- (NSInteger)displayValue {
+    if (DYToolsBool(@"DYYYEnableLiveRealCount")) return %orig;
+    return %orig;
+}
+%end
+
+// 小程序跳广告：DYYY 该功能属于小程序/激励广告流程，而不是隐藏小程序入口。
+// 这里阻止明确的广告跳转 URL，保留普通小程序打开行为。
+%hook BDXWebView
+- (BOOL)shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(NSInteger)navigationType {
+    if (DYToolsBool(@"DYYYMiniProgramSkipAd")) {
+        NSString *url = request.URL.absoluteString.lowercaseString ?: @"";
+        if ([url containsString:@"ad"] ||
+            [url containsString:@"advert"] ||
+            [url containsString:@"ads"] ||
+            [url containsString:@"reward"]) {
+            return NO;
+        }
+    }
+    return %orig(request, navigationType);
 }
 %end
 

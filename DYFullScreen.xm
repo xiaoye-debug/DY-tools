@@ -3850,7 +3850,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     }
 
     if (vc) {
-        [_searchController setActive:NO animated:YES];
+        [_searchController setActive:NO];
         [self.navigationController pushViewController:vc animated:YES];
     }
     [tableView deselectRowAtIndexPath:indexPath animated:YES];

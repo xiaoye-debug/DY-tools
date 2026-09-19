@@ -2696,7 +2696,7 @@ static NSHashTable *processedParentViews = nil;
         return;
     }
 
-    CGAffineTransform newTransform = CGAffineTransformMakeTranslation(0, originalTabBarHeight - gCurrentTabBarHeight);
+    CGAffineTransform newTransform = CGAffineTransformMakeTranslation(0, gDYFSOriginalTabBarHeight - gDYFSCurrentTabBarHeight);
 
     if (!CGAffineTransformEqualToTransform(self.transform, newTransform)) {
         self.transform = newTransform;

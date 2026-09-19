@@ -3086,6 +3086,23 @@ static UIViewController *DYToolsTopViewController(void) {
     return self;
 }
 
+- (NSArray *)dy_buildGlobalSearchEntries {
+    NSMutableArray *a = [NSMutableArray array];
+    void (^add)(NSString *, NSString *, NSString *, NSString *) =
+    ^(NSString *title, NSString *key, NSString *category, NSString *type) {
+        [a addObject:@{@"title":title ?: @"", @"key":key ?: @"", @"category":category ?: @"", @"type":type ?: @"main"}];
+    };
+    add(@"视频全屏", kDYFSFullScreenEnabledKey, @"全屏", @"main");
+    add(@"移除去汽水听", kDYToolsRemoveShuiTingKey, @"视频设置", @"video");
+    add(@"移除相关搜索", kDYToolsRemoveRelatedSearchKey, @"视频设置", @"video");
+    add(@"移除热点栏", kDYToolsRemoveHotspotKey, @"视频设置", @"video");
+    add(@"移除音乐按钮", kDYToolsHideMusicButtonKey, @"视频设置", @"video");
+    add(@"移除视频位置", kDYToolsHideLocationKey, @"视频设置", @"video");
+    add(@"去除进入直播间提示", kDYToolsHideEnterLiveKey, @"直播与互动", @"main");
+    add(@"禁止自动进入直播间", kDYToolsDisableAutoEnterLiveKey, @"直播与互动", @"main");
+    return [a copy];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
 
@@ -3943,12 +3960,13 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 
 #pragma mark - DYYY Basic Feature Hooks
 
-%hook TTAdSplashModel
-+ (id)alloc { if (DYToolsBool(@"DYYYNoAds")) return nil; return %orig; }
-%end
+
 %hook AWEOriginalAdModel
 - (instancetype)init { if (DYToolsBool(@"DYYYNoAds")) return nil; return %orig; }
-- (instancetype)initWithDictionary:(id)dict error:(NSError **)error { if (DYToolsBool(@"DYYYNoAds")) return nil; return %orig; }
+- (instancetype)initWithDictionary:(id)dict error:(NSError **)error {
+    if (DYToolsBool(@"DYYYNoAds")) return nil;
+    return %orig(dict, error);
+}
 %end
 %hook AWEGeneralSearchModel
 - (instancetype)initWithDictionary:(id)dict error:(NSError **)error {

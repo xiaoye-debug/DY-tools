@@ -1204,7 +1204,6 @@ static UIViewController *DYToolsTopViewController(void) {
     [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:kDYFSFullScreenEnabledKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
     if (!enabled) DYFSRunRestoreHooks();
-    DYToolsRefreshTargetUI();
 }
 
 - (void)dy_removeShuiTingChanged:(UISwitch *)sender {

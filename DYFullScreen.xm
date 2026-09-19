@@ -3050,10 +3050,12 @@ static UIViewController *DYToolsTopViewController(void) {
     self.tableView.showsVerticalScrollIndicator = NO;
 
     /*
-     * 这里严格对应 DYYY 的“顶栏移除”分类。
-     * 注意：这些不是 DYYY 的“隐藏设置”项目。
+     * 第一行是操作项，和下面的功能按钮保持完全相同的列表风格。
+     * “一键全选”开启全部顶栏移除功能；
+     * “一键取消”关闭全部顶栏移除功能。
      */
     _items = @[
+        @{@"title":@"一键全选", @"action":@"selectAll"},
         @{@"title":@"移除推荐",   @"key":@"DYYYHideHotContainer"},
         @{@"title":@"移除朋友",   @"key":@"DYYYHideFriend"},
         @{@"title":@"移除关注",   @"key":@"DYYYHideFollow"},
@@ -3069,17 +3071,6 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"移除少儿",   @"key":@"DYYYHideKidsV2"},
         @{@"title":@"移除游戏",   @"key":@"DYYYHideGame"},
         @{@"title":@"移除长视频", @"key":@"DYYYHideMediumVideo"}
-    ];
-
-    self.navigationItem.rightBarButtonItems = @[
-        [[UIBarButtonItem alloc] initWithTitle:@"一键取消"
-                                         style:UIBarButtonItemStylePlain
-                                        target:self
-                                        action:@selector(dy_selectNone)],
-        [[UIBarButtonItem alloc] initWithTitle:@"一键全选"
-                                         style:UIBarButtonItemStylePlain
-                                        target:self
-                                        action:@selector(dy_selectAll)]
     ];
 }
 
@@ -3108,6 +3099,33 @@ static UIViewController *DYToolsTopViewController(void) {
     cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
+    /*
+     * 第一行“一键全选”也是普通功能行风格。
+     * 右侧使用 Switch 表示当前是否全部开启。
+     */
+    if (indexPath.row == 0) {
+        UISwitch *sw = [UISwitch new];
+        sw.onTintColor = UIColor.systemBlueColor;
+
+        BOOL allEnabled = YES;
+        for (NSUInteger i = 1; i < _items.count; i++) {
+            NSString *key = _items[i][@"key"];
+            if (![[NSUserDefaults standardUserDefaults] boolForKey:key]) {
+                allEnabled = NO;
+                break;
+            }
+        }
+
+        sw.on = allEnabled;
+        sw.tag = 0;
+        [sw addTarget:self
+               action:@selector(dy_selectAllSwitch:)
+     forControlEvents:UIControlEventValueChanged];
+
+        cell.accessoryView = sw;
+        return cell;
+    }
+
     UISwitch *sw = [UISwitch new];
     sw.onTintColor = UIColor.systemBlueColor;
     sw.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
@@ -3127,25 +3145,26 @@ static UIViewController *DYToolsTopViewController(void) {
     [[NSUserDefaults standardUserDefaults] setBool:sender.isOn
                                              forKey:key];
     [[NSUserDefaults standardUserDefaults] synchronize];
+
+    [self.tableView reloadRowsAtIndexPaths:@[
+        [NSIndexPath indexPathForRow:0 inSection:0]
+    ] withRowAnimation:UITableViewRowAnimationNone];
 }
 
-- (void)dy_setAll:(BOOL)value {
+- (void)dy_selectAllSwitch:(UISwitch *)sender {
+    /*
+     * 开启 = 一键全选
+     * 关闭 = 一键取消
+     */
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 
-    for (NSDictionary *item in _items) {
-        [defaults setBool:value forKey:item[@"key"]];
+    for (NSUInteger i = 1; i < _items.count; i++) {
+        NSString *key = _items[i][@"key"];
+        [defaults setBool:sender.isOn forKey:key];
     }
 
     [defaults synchronize];
     [self.tableView reloadData];
-}
-
-- (void)dy_selectAll {
-    [self dy_setAll:YES];
-}
-
-- (void)dy_selectNone {
-    [self dy_setAll:NO];
 }
 
 @end

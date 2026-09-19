@@ -2,6 +2,9 @@
 
 #pragma mark - DYYY UIView class declarations
 
+@interface AWEIncentiveSwiftImplDOUYINLite_IncentivePendantContainerView : UIView
+@end
+
 @interface ACCStickerContainerView : UIView
 @end
 

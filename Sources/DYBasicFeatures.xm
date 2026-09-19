@@ -981,7 +981,7 @@ static void DYYYLiveDurationUpdateView(UIView *root) {
         return;
     }
 
-    if (!DYYYGetBool(@"DYYYShowLiveDuration")) {
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYShowLiveDuration"]) {
         DYYYLiveDurationRemoveFromView(root);
         return;
     }
@@ -1057,14 +1057,14 @@ static void DYYYLiveDurationInstallOnView(UIView *root, id carrier) {
     }
 
     void (^installBlock)(void) = ^{
-      if (!DYYYGetBool(@"DYYYShowLiveDuration")) {
+      if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYShowLiveDuration"]) {
           DYYYLiveDurationRemoveFromView(root);
           return;
       }
 
       id room = DYYYLiveDurationRoomFromCarrier(carrier);
       if (!DYYYLiveDurationHasValidLiveTime(room)) {
-          UIViewController *viewController = [DYYYUtils firstAvailableViewControllerFromView:root];
+          UIViewController *viewController = [[(id)root nextResponder]];
           room = DYYYLiveDurationRoomFromCarrier(viewController);
       }
 

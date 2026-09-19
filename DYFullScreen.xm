@@ -2,6 +2,54 @@
 
 #pragma mark - DYYY UIView class declarations
 
+@interface AWEFeedLiveTabRevisitControlView : UIView
+@end
+
+@interface IESLiveKTVSongIndicatorView : UIView
+@end
+
+@interface AWEFeedMultiTabSelectedContainerView : UIView
+@end
+
+@interface AFDRecommendToFriendEntranceLabel : UIView
+@end
+
+@interface AWEProfileMixItemCollectionViewCell : UIView
+@end
+
+@interface AWELiveAutoEnterStyleAView : UIView
+@end
+
+@interface AWECorrelationItemTag : UIView
+@end
+
+@interface AWEHPDiscoverFeedEntranceView : UIView
+@end
+
+@interface AWELiveStatusIndicatorView : UIView
+@end
+
+@interface AWELiveFeedLabelTagView : UIView
+@end
+
+@interface AWEPlayInteractionLiveExtendGuideView : UIView
+@end
+
+@interface AWEHPTopTabItemBadgeContentView : UIView
+@end
+
+@interface AWEIMFansGroupTopDynamicDomainTemplateView : UIView
+@end
+
+@interface AWEIMInputActionBarInteractor : UIView
+@end
+
+@interface AWETemplateCommonView : UIView
+@end
+
+@interface AWEHPTopBarCTAItemView : UIView
+@end
+
 @interface AWEFamiliarNavView : UIView
 @end
 

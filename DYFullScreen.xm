@@ -3473,7 +3473,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"启用弹幕改色",@"key":@"DYYYEnableDanmuColor",@"type":@"switch"},
         @{@"title":@"自定弹幕颜色",@"key":@"DYYYDanmuColor",@"type":@"text",@"placeholder":@"十六进制"},
         @{@"title":@"设置默认倍速",@"key":@"DYYYDefaultSpeed",@"type":@"picker"},@{@"title":@"设置长按倍速",@"key":@"DYYYLongPressSpeed",@"type":@"picker"},
-        @{@"title":@"上下控制倍速",@"key":@"DYYYEnableLongPressSpeedGesture",@"type":@"switch"},@{@"title":@"自动恢复默认倍速",@"key":@"DYYYAutoRestoreSpeed",@"type":@"switch"},@{@"title":@"显示进度时长",@"key":@"DYYYShowScheduleDisplay",@"type":@"switch"},
+        @{@"title":@"上下控制倍速",@"key":@"DYYYEnableLongPressSpeedGesture",@"type":@"switch"},@{@"title":@"自动恢复默认倍速",@"key":@"DYYYAutoRestoreSpeed",@"type":@"switch"},@{@"title":@"快捷倍速悬浮按钮",@"key":@"DYYYEnableFloatSpeedButton",@"type":@"switch"},@{@"title":@"显示进度时长",@"key":@"DYYYShowScheduleDisplay",@"type":@"switch"},
         @{@"title":@"进度时长样式",@"key":@"DYYYScheduleStyle",@"type":@"text",@"placeholder":@"默认"},@{@"title":@"进度纵轴位置",@"key":@"DYYYTimelineVerticalPosition",@"type":@"text",@"placeholder":@"-12.5"},
         @{@"title":@"进度标签颜色",@"key":@"DYYYProgressLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"隐藏视频进度",@"key":@"DYYYHideVideoProgress",@"type":@"switch"},
         @{@"title":@"启用自动播放",@"key":@"DYYYEnableAutoPlay",@"type":@"switch"},@{@"title":@"禁用双击视频点赞",@"key":@"DYYYDisableDoubleTapLike",@"type":@"switch"},@{@"title":@"禁用点击首页刷新",@"key":@"DYYYDisableHomeRefresh",@"type":@"switch"},@{@"title":@"忽略投屏 VPN 检测",@"key":@"DYYYDisableCastVPNCheck",@"type":@"switch"},
@@ -3689,6 +3689,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 - (NSArray *)dy_buildGlobalSearchEntries {
     return @[
         @{@"title":@"视频全屏", @"key":kDYFSFullScreenEnabledKey, @"category":@"全屏", @"type":@"main"},
+        @{@"title":@"快捷倍速悬浮按钮", @"key":@"DYYYEnableFloatSpeedButton", @"category":@"基本设置", @"type":@"basic"},
         @{@"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey, @"category":@"视频设置", @"type":@"video"},
         @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey, @"category":@"视频设置", @"type":@"video"},
         @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey, @"category":@"视频设置", @"type":@"video"},

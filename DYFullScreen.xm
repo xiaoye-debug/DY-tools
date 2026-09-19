@@ -3233,6 +3233,103 @@ static UIViewController *DYToolsTopViewController(void) {
 - (void)dy_selectNone { [self dy_setAll:NO]; }
 @end
 
+@interface DYToolsVideoSettingsViewController : UITableViewController
+@end
+
+@implementation DYToolsVideoSettingsViewController {
+    NSArray<NSDictionary *> *_items;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+
+    self.title = @"视频设置";
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero
+                                                  style:UITableViewStyleInsetGrouped];
+    self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.tableView.rowHeight = 52.0;
+    self.tableView.showsVerticalScrollIndicator = NO;
+
+    _items = @[
+        @{@"title":@"一键全选", @"action":@"selectAll"},
+        @{@"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey},
+        @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey},
+        @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey},
+        @{@"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey},
+        @{@"title":@"移除视频位置", @"key":kDYToolsHideLocationKey}
+    ];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return _items.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView
+         cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuse = @"DYToolsVideoSettingsCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                      reuseIdentifier:reuse];
+    }
+
+    NSDictionary *item = _items[indexPath.row];
+    cell.textLabel.text = item[@"title"];
+    cell.textLabel.font = [UIFont systemFontOfSize:16.0];
+    cell.textLabel.textColor = UIColor.labelColor;
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
+    UISwitch *sw = [UISwitch new];
+    sw.onTintColor = UIColor.systemBlueColor;
+
+    if (indexPath.row == 0) {
+        BOOL allEnabled = YES;
+        for (NSUInteger i = 1; i < _items.count; i++) {
+            if (![[NSUserDefaults standardUserDefaults] boolForKey:_items[i][@"key"]]) {
+                allEnabled = NO;
+                break;
+            }
+        }
+        sw.on = allEnabled;
+        sw.tag = 0;
+        [sw addTarget:self action:@selector(dy_selectAllSwitch:)
+      forControlEvents:UIControlEventValueChanged];
+    } else {
+        sw.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
+        sw.tag = indexPath.row;
+        [sw addTarget:self action:@selector(dy_switch:)
+      forControlEvents:UIControlEventValueChanged];
+    }
+
+    cell.accessoryView = sw;
+    return cell;
+}
+
+- (void)dy_switch:(UISwitch *)sender {
+    NSString *key = _items[sender.tag][@"key"];
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:key];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+
+    [self.tableView reloadRowsAtIndexPaths:@[
+        [NSIndexPath indexPathForRow:0 inSection:0]
+    ] withRowAnimation:UITableViewRowAnimationNone];
+}
+
+- (void)dy_selectAllSwitch:(UISwitch *)sender {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    for (NSUInteger i = 1; i < _items.count; i++) {
+        [defaults setBool:sender.isOn forKey:_items[i][@"key"]];
+    }
+
+    [defaults synchronize];
+    [self.tableView reloadData];
+}
+
+@end
+
 @interface DYToolsControlViewController : UIViewController
 @end
 
@@ -3389,7 +3486,7 @@ static UIViewController *DYToolsTopViewController(void) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
         case 0: return 1; // Fullscreen
-        case 1: return 7; // Video
+        case 1: return 3; // Video
         case 2: return 2; // Live / interaction
         default: return 0;
     }
@@ -3407,7 +3504,7 @@ static UIViewController *DYToolsTopViewController(void) {
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     switch (section) {
         case 0: return @"开启后，视频播放区域会使用全屏布局。";
-        case 1: return @"用于整理视频页面中不需要的辅助入口和信息。";
+        case 1: return @"视频设置、顶栏和底栏功能分类管理。";
         case 2: return @"用于处理直播入口及直播自动跳转行为。";
         default: return nil;
     }
@@ -3453,30 +3550,14 @@ static UIViewController *DYToolsTopViewController(void) {
     } else if (indexPath.section == 1) {
         switch (indexPath.row) {
             case 0:
-                cell.textLabel.text = @"移除去汽水听";
-                sw = _removeShuiTingSwitch;
+                cell.textLabel.text = @"视频设置";
+                cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
                 break;
             case 1:
-                cell.textLabel.text = @"移除相关搜索";
-                sw = _removeRelatedSearchSwitch;
-                break;
-            case 2:
-                cell.textLabel.text = @"移除热点栏";
-                sw = _removeHotspotSwitch;
-                break;
-            case 3:
-                cell.textLabel.text = @"移除音乐按钮";
-                sw = _hideMusicButtonSwitch;
-                break;
-            case 4:
-                cell.textLabel.text = @"移除视频位置";
-                sw = _hideLocationSwitch;
-                break;
-            case 5:
                 cell.textLabel.text = @"移除顶栏";
                 cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
                 break;
-            case 6:
+            case 2:
                 cell.textLabel.text = @"移除底栏";
                 cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
                 break;
@@ -3503,13 +3584,19 @@ static UIViewController *DYToolsTopViewController(void) {
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (indexPath.section == 1 && indexPath.row == 5) {
+    if (indexPath.section == 1 && indexPath.row == 0) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        DYToolsVideoSettingsViewController *vc = [DYToolsVideoSettingsViewController new];
+        [self.navigationController pushViewController:vc animated:YES];
+        return;
+    }
+    if (indexPath.section == 1 && indexPath.row == 1) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DYToolsTopBarViewController *vc = [DYToolsTopBarViewController new];
         [self.navigationController pushViewController:vc animated:YES];
         return;
     }
-    if (indexPath.section == 1 && indexPath.row == 6) {
+    if (indexPath.section == 1 && indexPath.row == 2) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DYToolsBottomBarViewController *vc = [DYToolsBottomBarViewController new];
         [self.navigationController pushViewController:vc animated:YES];

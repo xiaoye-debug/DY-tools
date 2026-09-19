@@ -4,6 +4,9 @@
 #import <objc/message.h>
 #import <math.h>
 
+@interface IESLiveAudienceViewController : UIViewController
+@end
+
 #pragma mark - DYYY migrated basic features
 
 /*
@@ -1064,7 +1067,7 @@ static void DYYYLiveDurationInstallOnView(UIView *root, id carrier) {
 
       id room = DYYYLiveDurationRoomFromCarrier(carrier);
       if (!DYYYLiveDurationHasValidLiveTime(room)) {
-          UIViewController *viewController = [[(id)root nextResponder]];
+          UIViewController *viewController = [(id)root nextResponder];
           room = DYYYLiveDurationRoomFromCarrier(viewController);
       }
 

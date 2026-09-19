@@ -3986,67 +3986,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 %hook AWEFeedIPhoneAutoPlayManager
 - (BOOL)isAutoPlayOpen { if(DYToolsBool(@"DYYYEnableAutoPlay"))return YES; return %orig; }
 %end
-%hook BDByteCastMonitorManager
-- (BOOL)netVPNStatus {
-    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return NO;
-    return %orig;
-}
-- (void)setNetVPNStatus:(BOOL)v {
-    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return;
-    %orig;
-}
-%end
-%hook BDByteCastEnvInfo
-- (BOOL)isVPNActive {
-    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return NO;
-    return %orig;
-}
-- (void)setIsVPNActive:(BOOL)v {
-    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return;
-    %orig;
-}
-%end
-%hook BDByteScreenCastContext
-- (BOOL)isVPNActive {
-    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return NO;
-    return %orig;
-}
-- (void)setIsVPNActive:(BOOL)v {
-    if(DYToolsBool(@"DYYYDisableCastVPNCheck")) return;
-    %orig;
-}
-%end
-
-- (void)updateSearchResultsForSearchController:(UISearchController *)searchController {
-    NSString *q=[searchController.searchBar.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if(!q.length){_globalSearchResults=@[];}else{
-      _globalSearchResults=[_globalSearchEntries filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSDictionary *o,NSDictionary *b){
-        return [o[@"title"] localizedCaseInsensitiveContainsString:q]||[o[@"key"] localizedCaseInsensitiveContainsString:q]||[o[@"category"] localizedCaseInsensitiveContainsString:q];
-      }]];
-    }
-    [_dyTableView reloadData];
-}
-- (NSArray *)dy_buildGlobalSearchEntries {
- NSMutableArray *a=[NSMutableArray array];
- void(^add)(NSString*,NSString*,NSString*,NSString*)=^(NSString*t,NSString*k,NSString*c,NSString*y){[a addObject:@{@"title":t,@"key":k?:@"",@"category":c,@"type":y}];};
- add(@"视频全屏",kDYFSFullScreenEnabledKey,@"全屏",@"main");
- add(@"移除去汽水听",kDYToolsRemoveShuiTingKey,@"视频设置",@"video");
- add(@"移除相关搜索",kDYToolsRemoveRelatedSearchKey,@"视频设置",@"video");
- add(@"移除热点栏",kDYToolsRemoveHotspotKey,@"视频设置",@"video");
- add(@"移除音乐按钮",kDYToolsHideMusicButtonKey,@"视频设置",@"video");
- add(@"移除视频位置",@"DYYYHideLocation",@"视频设置",@"video");
- NSArray *b=@[
- @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"],@[@"评论具体时间",@"DYYYCommentExactTime"],@[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo"],@[@"显示开播时长",@"DYYYShowLiveDuration"],@[@"禁用访客记录上传",@"DYYYDisableProfileVisitRecordUpload"],@[@"禁用作品浏览记录上传",@"DYYYDisableFeedHistoryUpload"],@[@"小程序跳广告",@"DYYYMiniProgramSkipAd"]];
- for(NSArray*x in b)add(x[0],x[1],@"基本设置",@"basic");
- NSArray*t=@[@"推荐",@"DYYYHideHotContainer",@"朋友",@"DYYYHideFriend",@"关注",@"DYYYHideFollow",@"精选",@"DYYYHideMediumVideo",@"商城",@"DYYYHideMall",@"同城",@"DYYYHideNearby",@"团购",@"DYYYHideGroupon",@"直播",@"DYYYHideTabLive",@"热点",@"DYYYHidePadHot",@"经验",@"DYYYHideHangout",@"短剧",@"DYYYHidePlaylet",@"看剧",@"DYYYHideCinema",@"少儿",@"DYYYHideKidsV2",@"游戏",@"DYYYHideGame"];
- for(NSUInteger i=0;i+1<t.count;i+=2)add([NSString stringWithFormat:@"移除%@",t[i]],t[i+1],@"顶栏移除",@"top");
- NSArray*bt=@[@"商城",@"DYYYHideShopButton",@"双列入口",@"DYYYHideDoubleColumnEntry",@"消息",@"DYYYHideMessageButton",@"朋友",@"DYYYHideFriendsButton",@"我的",@"DYYYHideMyButton",@"加号",@"DYYYHidePlusButton",@"评论",@"DYYYHideComment",@"红点",@"DYYYHideBottomDot",@"背景",@"DYYYHideBottomBg",@"精简平板底栏",@"DYYYHidePadTabBarElements"];
- for(NSUInteger i=0;i+1<bt.count;i+=2)add([NSString stringWithFormat:@"隐藏底栏%@",bt[i]],bt[i+1],@"移除底栏",@"bottom");
- return a;
-}
-
-
-#pragma mark - DYYY Exact Comment Time + Dynamic Island Playback Info
+// 投屏 VPN 检测 Hook 暂停迁移：40.x Logos 在该组 Hook 上出现嵌套函数生成错误，先保证主工程稳定编译。\n\n#pragma mark - DYYY Exact Comment Time + Dynamic Island Playback Info
 
 @interface AWEDateTimeFormatter : NSObject
 + (id)formattedDateForTimestamp:(double)timestamp;

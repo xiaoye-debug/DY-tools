@@ -3368,7 +3368,7 @@ static UIViewController *DYToolsTopViewController(void) {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
 
     if (!cell) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
                                       reuseIdentifier:reuse];
     }
 
@@ -3966,15 +3966,94 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     return cell;
 }
 
+- (void)updateSearchResultsForSearchController:(UISearchController *)searchController {
+    NSString *query = [searchController.searchBar.text stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+
+    if (query.length == 0) {
+        _globalSearchResults = @[];
+    } else {
+        NSString *lower = query.lowercaseString;
+        NSMutableArray *results = [NSMutableArray array];
+
+        for (NSDictionary *item in _globalSearchEntries) {
+            NSString *title = [item[@"title"] description] ?: @"";
+            NSString *key = [item[@"key"] description] ?: @"";
+            NSString *category = [item[@"category"] description] ?: @"";
+
+            if ([title.lowercaseString containsString:lower] ||
+                [key.lowercaseString containsString:lower] ||
+                [category.lowercaseString containsString:lower]) {
+                [results addObject:item];
+            }
+        }
+
+        _globalSearchResults = [results copy];
+    }
+
+    [_dyTableView reloadData];
+}
+
+- (void)dy_openGlobalSearchItem:(NSDictionary *)item {
+    if (!item) return;
+
+    NSString *type = item[@"type"];
+    NSString *key = item[@"key"];
+
+    [_globalSearchController setActive:NO animated:YES];
+
+    if ([type isEqualToString:@"basic"]) {
+        [self.navigationController pushViewController:
+            [[DYToolsBasicSettingsViewController alloc] initWithFocusKey:key]
+                                            animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"video"]) {
+        [self.navigationController pushViewController:
+            [[DYToolsVideoSettingsViewController alloc] initWithFocusKey:key]
+                                            animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"top"]) {
+        [self.navigationController pushViewController:
+            [[DYToolsTopBarViewController alloc] initWithFocusKey:key]
+                                            animated:YES];
+        return;
+    }
+
+    if ([type isEqualToString:@"bottom"]) {
+        [self.navigationController pushViewController:
+            [[DYToolsBottomBarViewController alloc] initWithFocusKey:key]
+                                            animated:YES];
+        return;
+    }
+
+    // 主面板项目：关闭搜索后直接定位到对应的主面板行。
+    if ([type isEqualToString:@"main"]) {
+        if ([key isEqualToString:kDYFSFullScreenEnabledKey]) {
+            [_dyTableView scrollToRowAtIndexPath:
+                [NSIndexPath indexPathForRow:0 inSection:1]
+                                atScrollPosition:UITableViewScrollPositionMiddle
+                                        animated:YES];
+        } else if ([key isEqualToString:kDYToolsHideEnterLiveKey] ||
+                   [key isEqualToString:kDYToolsDisableAutoEnterLiveKey]) {
+            NSInteger row = [key isEqualToString:kDYToolsHideEnterLiveKey] ? 0 : 1;
+            [_dyTableView scrollToRowAtIndexPath:
+                [NSIndexPath indexPathForRow:row inSection:3]
+                                atScrollPosition:UITableViewScrollPositionMiddle
+                                        animated:YES];
+        }
+    }
+}
+
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (_globalSearchController.isActive && _globalSearchResults.count > 0) {
-        NSDictionary *item = _globalSearchResults[indexPath.row];
-        UIViewController *vc=nil;
-        if([item[@"type"] isEqualToString:@"basic"]) vc=[[DYToolsBasicSettingsViewController alloc] initWithFocusKey:item[@"key"]];
-        else if([item[@"type"] isEqualToString:@"video"]) vc=[[DYToolsVideoSettingsViewController alloc] initWithFocusKey:item[@"key"]];
-        else if([item[@"type"] isEqualToString:@"top"]) vc=[[DYToolsTopBarViewController alloc] initWithFocusKey:item[@"key"]];
-        else if([item[@"type"] isEqualToString:@"bottom"]) vc=[[DYToolsBottomBarViewController alloc] initWithFocusKey:item[@"key"]];
-        if(vc){ [_globalSearchController setActive:NO]; [self.navigationController pushViewController:vc animated:YES]; }
+    if (_globalSearchController.isActive) {
+        if (indexPath.row < (NSInteger)_globalSearchResults.count) {
+            [self dy_openGlobalSearchItem:_globalSearchResults[indexPath.row]];
+        }
+        [tableView deselectRowAtIndexPath:indexPath animated:NO];
         return;
     }
     if(indexPath.section==0){ [self.navigationController pushViewController:[DYToolsBasicSettingsViewController new] animated:YES]; return; }

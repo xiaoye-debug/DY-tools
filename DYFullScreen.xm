@@ -3972,6 +3972,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     if(status==1&&DYToolsBool(@"DYYYEnableBackgroundListen"))status=2;
     %orig;
 }
+%end
 %hook AWEFeedIPhoneAutoPlayManager
 - (BOOL)isAutoPlayOpen { if(DYToolsBool(@"DYYYEnableAutoPlay"))return YES; return %orig; }
 %end

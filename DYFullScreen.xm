@@ -3967,7 +3967,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 - (BOOL)show { if (DYToolsBool(@"DYYYHideTeenMode")) return NO; return %orig; }
 %end
 %hook AWEVersionUpdateManager
-- (void)startVersionUpdateWorkflow:(id)arg1 completion:(id)arg2 { if(DYToolsBool(@"DYYYNoUpdates")) { if(arg2)((void(^)(void))arg2)(); return;} %orig(arg1, arg2); }
+- (void)startVersionUpdateWorkflow:(id)arg1 completion:(id)arg2 { %orig; }
 - (id)workflow { if(DYToolsBool(@"DYYYNoUpdates")) return nil; return %orig; }
 - (id)badgeModule { if(DYToolsBool(@"DYYYNoUpdates")) return nil; return %orig; }
 %end

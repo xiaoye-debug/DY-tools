@@ -9,6 +9,10 @@
 
 static NSString *const kDYFSFullScreenEnabledKey = @"DYYYEnableFullScreen";
 
+static NSString *const kDYToolsRemoveShuiTingKey = @"DYToolsRemoveShuiTing";
+static NSString *const kDYToolsRemoveRelatedSearchKey = @"DYToolsRemoveRelatedSearch";
+
+
 BOOL DYFSIsEnabled(void) {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     if ([defaults objectForKey:kDYFSFullScreenEnabledKey] == nil) {
@@ -1022,9 +1026,6 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
 }
 
 #pragma mark - DY-tools UI features
-
-static NSString *const kDYToolsRemoveShuiTingKey = @"DYToolsRemoveShuiTing";
-static NSString *const kDYToolsRemoveRelatedSearchKey = @"DYToolsRemoveRelatedSearch";
 
 static BOOL DYToolsBool(NSString *key) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];

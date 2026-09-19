@@ -155,6 +155,26 @@ BOOL DYFSIsEnabled(void) {
     if ([defaults objectForKey:kDYToolsHideLocationKey] == nil) {
         [defaults setBool:NO forKey:kDYToolsHideLocationKey];
     }
+    NSArray *dyTopBarRemovalKeys = @[
+        @"DYYYHideHotContainer",
+        @"DYYYHideFriend",
+        @"DYYYHideFollow",
+        @"DYYYHideMediumVideo",
+        @"DYYYHideMall",
+        @"DYYYHideNearby",
+        @"DYYYHideGroupon",
+        @"DYYYHideTabLive",
+        @"DYYYHidePadHot",
+        @"DYYYHideHangout",
+        @"DYYYHidePlaylet",
+        @"DYYYHideCinema",
+        @"DYYYHideKidsV2",
+        @"DYYYHideGame"
+    ];
+    for (NSString *key in dyTopBarRemovalKeys) {
+        if ([defaults objectForKey:key] == nil) [defaults setBool:NO forKey:key];
+    }
+
     NSArray *dyTopBarKeys = @[
         @"DYYYHideEntry",
         @"DYYYHideShopButton",
@@ -2858,6 +2878,123 @@ static NSHashTable *processedParentViews = nil;
 }
 %end
 
+#pragma mark - DYYY top-bar removal
+
+/*
+ * DYYY 的“顶栏移除”并不是“隐藏设置”。
+ * 原实现 Hook AWEFeedChannelManager，根据 channelID 过滤顶部频道。
+ * 这里按 6c3dfbd911822b4d0f758f184c196566e8142291 的实际逻辑迁移。
+ */
+@interface AWEFeedChannelManager : NSObject
+@end
+
+%hook AWEFeedChannelManager
+
+- (void)reloadChannelWithChannelModels:(id)arg1
+              currentChannelIDList:(id)arg2
+                         reloadType:(id)arg3
+                    selectedChannelID:(id)arg4 {
+
+    NSArray *channelModels = arg1;
+    NSMutableArray *newChannelModels = [NSMutableArray array];
+
+    NSArray *currentChannelIDList =
+        [arg2 isKindOfClass:NSArray.class] ? arg2 : @[];
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    for (id tabItemModel in channelModels) {
+        NSString *channelID = nil;
+
+        @try {
+            channelID = [tabItemModel valueForKey:@"channelID"];
+        } @catch (__unused NSException *e) {
+            channelID = nil;
+        }
+
+        BOOL remove = NO;
+
+        if ([channelID isEqualToString:@"homepage_hot_container"]) {
+            remove = [defaults boolForKey:@"DYYYHideHotContainer"];
+        } else if ([channelID isEqualToString:@"homepage_familiar"]) {
+            remove = [defaults boolForKey:@"DYYYHideFriend"];
+        } else if ([channelID isEqualToString:@"homepage_follow"]) {
+            remove = [defaults boolForKey:@"DYYYHideFollow"];
+        } else if ([channelID isEqualToString:@"homepage_mediumvideo"]) {
+            remove = [defaults boolForKey:@"DYYYHideMediumVideo"];
+        } else if ([channelID isEqualToString:@"homepage_mall"]) {
+            remove = [defaults boolForKey:@"DYYYHideMall"];
+        } else if ([channelID isEqualToString:@"homepage_nearby"]) {
+            remove = [defaults boolForKey:@"DYYYHideNearby"];
+        } else if ([channelID isEqualToString:@"homepage_groupon"]) {
+            remove = [defaults boolForKey:@"DYYYHideGroupon"];
+        } else if ([channelID isEqualToString:@"homepage_tablive"]) {
+            remove = [defaults boolForKey:@"DYYYHideTabLive"];
+        } else if ([channelID isEqualToString:@"homepage_pad_hot"]) {
+            remove = [defaults boolForKey:@"DYYYHidePadHot"];
+        } else if ([channelID isEqualToString:@"homepage_hangout"]) {
+            remove = [defaults boolForKey:@"DYYYHideHangout"];
+        } else if ([channelID isEqualToString:@"homepage_playlet_stream"]) {
+            remove = [defaults boolForKey:@"DYYYHidePlaylet"];
+        } else if ([channelID isEqualToString:@"homepage_pad_cinema"]) {
+            remove = [defaults boolForKey:@"DYYYHideCinema"];
+        } else if ([channelID isEqualToString:@"homepage_pad_kids_v2"]) {
+            remove = [defaults boolForKey:@"DYYYHideKidsV2"];
+        } else if ([channelID isEqualToString:@"homepage_pad_game"]) {
+            remove = [defaults boolForKey:@"DYYYHideGame"];
+        }
+
+        if (!remove) {
+            [newChannelModels addObject:tabItemModel];
+        }
+    }
+
+    NSMutableArray *newCurrentChannelIDList =
+        [NSMutableArray arrayWithCapacity:currentChannelIDList.count];
+
+    for (id channelID in currentChannelIDList) {
+        BOOL remove = NO;
+
+        if ([channelID isEqualToString:@"homepage_hot_container"]) {
+            remove = [defaults boolForKey:@"DYYYHideHotContainer"];
+        } else if ([channelID isEqualToString:@"homepage_familiar"]) {
+            remove = [defaults boolForKey:@"DYYYHideFriend"];
+        } else if ([channelID isEqualToString:@"homepage_follow"]) {
+            remove = [defaults boolForKey:@"DYYYHideFollow"];
+        } else if ([channelID isEqualToString:@"homepage_mediumvideo"]) {
+            remove = [defaults boolForKey:@"DYYYHideMediumVideo"];
+        } else if ([channelID isEqualToString:@"homepage_mall"]) {
+            remove = [defaults boolForKey:@"DYYYHideMall"];
+        } else if ([channelID isEqualToString:@"homepage_nearby"]) {
+            remove = [defaults boolForKey:@"DYYYHideNearby"];
+        } else if ([channelID isEqualToString:@"homepage_groupon"]) {
+            remove = [defaults boolForKey:@"DYYYHideGroupon"];
+        } else if ([channelID isEqualToString:@"homepage_tablive"]) {
+            remove = [defaults boolForKey:@"DYYYHideTabLive"];
+        } else if ([channelID isEqualToString:@"homepage_pad_hot"]) {
+            remove = [defaults boolForKey:@"DYYYHidePadHot"];
+        } else if ([channelID isEqualToString:@"homepage_hangout"]) {
+            remove = [defaults boolForKey:@"DYYYHideHangout"];
+        } else if ([channelID isEqualToString:@"homepage_playlet_stream"]) {
+            remove = [defaults boolForKey:@"DYYYHidePlaylet"];
+        } else if ([channelID isEqualToString:@"homepage_pad_cinema"]) {
+            remove = [defaults boolForKey:@"DYYYHideCinema"];
+        } else if ([channelID isEqualToString:@"homepage_pad_kids_v2"]) {
+            remove = [defaults boolForKey:@"DYYYHideKidsV2"];
+        } else if ([channelID isEqualToString:@"homepage_pad_game"]) {
+            remove = [defaults boolForKey:@"DYYYHideGame"];
+        }
+
+        if (!remove) {
+            [newCurrentChannelIDList addObject:channelID];
+        }
+    }
+
+    %orig(newChannelModels, newCurrentChannelIDList, arg3, arg4);
+}
+
+%end
+
 #pragma mark - DY-tools control panel
 
 @interface AWESettingItemModel : NSObject
@@ -2901,62 +3038,116 @@ static UIViewController *DYToolsTopViewController(void) {
 @implementation DYToolsTopBarViewController {
     NSArray<NSDictionary *> *_items;
 }
+
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"移除顶栏";
-    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+
+    self.title = @"顶栏移除";
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero
+                                                 style:UITableViewStyleInsetGrouped];
     self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.tableView.rowHeight = 52.0;
+    self.tableView.showsVerticalScrollIndicator = NO;
+
+    /*
+     * 这里严格对应 DYYY 的“顶栏移除”分类。
+     * 注意：这些不是 DYYY 的“隐藏设置”项目。
+     */
     _items = @[
-        @{@"title":@"隐藏全屏观看", @"key":@"DYYYHideEntry"},
-        @{@"title":@"隐藏右上搜索", @"key":@"DYYYHideDiscover"},
-        @{@"title":@"隐藏搜索入口", @"key":@"DYYYHideSearchEntrance"},
-        @{@"title":@"隐藏搜索气泡", @"key":@"DYYYHideSearchBubble"},
-        @{@"title":@"隐藏左侧边栏", @"key":@"DYYYHideLeftSideBar"},
-        @{@"title":@"隐藏侧栏红点", @"key":@"DYYYHideSidebarDot"},
-        @{@"title":@"隐藏消息顶栏红包", @"key":@"DYYYHideMessageTabRedPacket"},
-        @{@"title":@"隐藏顶栏横线", @"key":@"DYYYHideTopBarLine"},
-        @{@"title":@"隐藏顶栏红点", @"key":@"DYYYHideTopBarBadge"},
-        @{@"title":@"隐藏关注顶端", @"key":@"DYYYHideLiveView"},
-        @{@"title":@"隐藏同城顶端", @"key":@"DYYYHideMenuView"},
-        @{@"title":@"隐藏关注直播胶囊", @"key":@"DYYYHideConcernCapsuleView"},
-        @{@"title":@"隐藏直播胶囊", @"key":@"DYYYHideLiveCapsuleView"}
+        @{@"title":@"移除推荐",   @"key":@"DYYYHideHotContainer"},
+        @{@"title":@"移除朋友",   @"key":@"DYYYHideFriend"},
+        @{@"title":@"移除关注",   @"key":@"DYYYHideFollow"},
+        @{@"title":@"移除精选",   @"key":@"DYYYHideMediumVideo"},
+        @{@"title":@"移除商城",   @"key":@"DYYYHideMall"},
+        @{@"title":@"移除同城",   @"key":@"DYYYHideNearby"},
+        @{@"title":@"移除团购",   @"key":@"DYYYHideGroupon"},
+        @{@"title":@"移除直播",   @"key":@"DYYYHideTabLive"},
+        @{@"title":@"移除热点",   @"key":@"DYYYHidePadHot"},
+        @{@"title":@"移除经验",   @"key":@"DYYYHideHangout"},
+        @{@"title":@"移除短剧",   @"key":@"DYYYHidePlaylet"},
+        @{@"title":@"移除看剧",   @"key":@"DYYYHideCinema"},
+        @{@"title":@"移除少儿",   @"key":@"DYYYHideKidsV2"},
+        @{@"title":@"移除游戏",   @"key":@"DYYYHideGame"},
+        @{@"title":@"移除长视频", @"key":@"DYYYHideMediumVideo"}
     ];
+
     self.navigationItem.rightBarButtonItems = @[
-        [[UIBarButtonItem alloc] initWithTitle:@"一键取消" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectNone)],
-        [[UIBarButtonItem alloc] initWithTitle:@"一键全选" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectAll)]
+        [[UIBarButtonItem alloc] initWithTitle:@"一键取消"
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(dy_selectNone)],
+        [[UIBarButtonItem alloc] initWithTitle:@"一键全选"
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(dy_selectAll)]
     ];
 }
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return _items.count; }
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+
+- (NSInteger)tableView:(UITableView *)tableView
+ numberOfRowsInSection:(NSInteger)section {
+    return _items.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView
+         cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     static NSString *reuse = @"DYToolsTopBarCell";
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
-    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuse];
+
+    UITableViewCell *cell =
+        [tableView dequeueReusableCellWithIdentifier:reuse];
+
+    if (!cell) {
+        cell = [[UITableViewCell alloc]
+                initWithStyle:UITableViewCellStyleDefault
+                reuseIdentifier:reuse];
+    }
+
     NSDictionary *item = _items[indexPath.row];
+
     cell.textLabel.text = item[@"title"];
     cell.textLabel.font = [UIFont systemFontOfSize:16.0];
     cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
     UISwitch *sw = [UISwitch new];
     sw.onTintColor = UIColor.systemBlueColor;
     sw.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
     sw.tag = indexPath.row;
-    [sw addTarget:self action:@selector(dy_switch:) forControlEvents:UIControlEventValueChanged];
+
+    [sw addTarget:self
+           action:@selector(dy_switch:)
+ forControlEvents:UIControlEventValueChanged];
+
     cell.accessoryView = sw;
     return cell;
 }
+
 - (void)dy_switch:(UISwitch *)sender {
     NSString *key = _items[sender.tag][@"key"];
-    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:key];
+
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn
+                                             forKey:key];
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
+
 - (void)dy_setAll:(BOOL)value {
-    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-    for (NSDictionary *item in _items) [d setBool:value forKey:item[@"key"]];
-    [d synchronize];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    for (NSDictionary *item in _items) {
+        [defaults setBool:value forKey:item[@"key"]];
+    }
+
+    [defaults synchronize];
     [self.tableView reloadData];
 }
-- (void)dy_selectAll { [self dy_setAll:YES]; }
-- (void)dy_selectNone { [self dy_setAll:NO]; }
+
+- (void)dy_selectAll {
+    [self dy_setAll:YES];
+}
+
+- (void)dy_selectNone {
+    [self dy_setAll:NO];
+}
+
 @end
 
 @interface DYToolsBottomBarViewController : UITableViewController

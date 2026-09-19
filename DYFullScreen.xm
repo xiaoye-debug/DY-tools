@@ -449,6 +449,20 @@ static UIWindow *DYFSActiveWindow(void) {
         }
     }
 
+    // DYYY: 禁用点击当前已选中的首页再次刷新。
+    if ([defaults boolForKey:@"DYYYDisableHomeRefresh"]) {
+        Class generalButtonClass = NSClassFromString(@"AWENormalModeTabBarGeneralButton");
+        if (generalButtonClass) {
+            for (UIView *button in self.subviews) {
+                if (![button isKindOfClass:generalButtonClass]) continue;
+                if (![button.accessibilityLabel isEqualToString:@"首页"]) continue;
+                NSInteger status = 0;
+                @try { status = [[button valueForKey:@"status"] integerValue]; } @catch (__unused NSException *e) {}
+                button.userInteractionEnabled = (status != 2);
+            }
+        }
+    }
+
     if (!DYFSIsEnabled()) return;
 
     Class bgClass = NSClassFromString(@"_UIBarBackground");

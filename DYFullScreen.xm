@@ -1031,36 +1031,73 @@ static BOOL DYToolsBool(NSString *key) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:key];
 }
 
+static BOOL DYToolsIsControlPanelView(UIView *view) {
+    UIResponder *r = view;
+    while (r) {
+        if ([r isKindOfClass:NSClassFromString(@"DYToolsControlViewController")]) return YES;
+        r = [r nextResponder];
+    }
+    return NO;
+}
+
 static BOOL DYToolsShouldRemoveUIString(NSString *text) {
     if (!text.length) return NO;
 
-    if (DYToolsBool(kDYToolsRemoveShuiTingKey)) {
-        NSString *s = [text stringByReplacingOccurrencesOfString:@" " withString:@""];
-        if ([s containsString:@"去汽水听"]) return YES;
+    NSString *s = [text stringByReplacingOccurrencesOfString:@" " withString:@""];
+    NSString *s2 = [s stringByReplacingOccurrencesOfString:@"\n" withString:@""];
+
+    if (DYToolsBool(kDYToolsRemoveShuiTingKey) &&
+        [s2 containsString:@"去汽水听"]) {
+        return YES;
     }
 
-    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey)) {
-        if ([text containsString:@"相关搜索"]) return YES;
+    if (DYToolsBool(kDYToolsRemoveRelatedSearchKey) &&
+        [s2 containsString:@"相关搜索"]) {
+        return YES;
     }
 
     return NO;
 }
 
+static void DYToolsApplyViewVisibility(UIView *view) {
+    if (!view || DYToolsIsControlPanelView(view)) return;
+
+    NSString *accessibility = view.accessibilityLabel;
+    if (DYToolsShouldRemoveUIString(accessibility)) {
+        view.hidden = YES;
+        view.alpha = 0.0;
+        objc_setAssociatedObject(view, @selector(DYToolsApplyViewVisibility),
+                                 @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return;
+    }
+
+    if ([objc_getAssociatedObject(view, @selector(DYToolsApplyViewVisibility)) boolValue]) {
+        view.hidden = NO;
+        view.alpha = 1.0;
+        objc_setAssociatedObject(view, @selector(DYToolsApplyViewVisibility),
+                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+}
+
 static void DYToolsApplyLabelVisibility(UILabel *label) {
-    if (!label) return;
+    if (!label || DYToolsIsControlPanelView(label)) return;
+
     BOOL remove = DYToolsShouldRemoveUIString(label.text);
     if (remove) {
         label.hidden = YES;
         label.alpha = 0.0;
-    } else if (label.hidden && [label.accessibilityIdentifier hasPrefix:@"DYToolsHidden"]) {
+        objc_setAssociatedObject(label, @selector(DYToolsApplyLabelVisibility),
+                                 @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    } else if ([objc_getAssociatedObject(label, @selector(DYToolsApplyLabelVisibility)) boolValue]) {
         label.hidden = NO;
         label.alpha = 1.0;
+        objc_setAssociatedObject(label, @selector(DYToolsApplyLabelVisibility),
+                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    if (remove) label.accessibilityIdentifier = @"DYToolsHiddenLabel";
 }
 
 static void DYToolsApplyButtonVisibility(UIButton *button) {
-    if (!button) return;
+    if (!button || DYToolsIsControlPanelView(button)) return;
 
     NSString *title = [button titleForState:UIControlStateNormal];
     if (!title.length) title = button.accessibilityLabel;
@@ -1069,16 +1106,47 @@ static void DYToolsApplyButtonVisibility(UIButton *button) {
     if (remove) {
         button.hidden = YES;
         button.alpha = 0.0;
-    } else if ([button.accessibilityIdentifier hasPrefix:@"DYToolsHidden"]) {
+        objc_setAssociatedObject(button, @selector(DYToolsApplyButtonVisibility),
+                                 @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    } else if ([objc_getAssociatedObject(button, @selector(DYToolsApplyButtonVisibility)) boolValue]) {
         button.hidden = NO;
         button.alpha = 1.0;
-        button.accessibilityIdentifier = nil;
+        objc_setAssociatedObject(button, @selector(DYToolsApplyButtonVisibility),
+                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    if (remove) button.accessibilityIdentifier = @"DYToolsHiddenButton";
 }
 
-@interface UILabel (DYToolsUIFeatures)
-@end
+static void DYToolsScanViewTree(UIView *root) {
+    if (!root || DYToolsIsControlPanelView(root)) return;
+
+    DYToolsApplyViewVisibility(root);
+    if ([root isKindOfClass:UILabel.class]) {
+        DYToolsApplyLabelVisibility((UILabel *)root);
+    } else if ([root isKindOfClass:UIButton.class]) {
+        DYToolsApplyButtonVisibility((UIButton *)root);
+    } else if ([root isKindOfClass:UITextView.class]) {
+        UITextView *tv = (UITextView *)root;
+        if (DYToolsShouldRemoveUIString(tv.text)) {
+            tv.hidden = YES;
+            tv.alpha = 0.0;
+        }
+    }
+
+    for (UIView *subview in [root.subviews copy]) {
+        DYToolsScanViewTree(subview);
+    }
+}
+
+static void DYToolsRefreshTargetUI(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = DYFSActiveWindow();
+        if (!window) return;
+        DYToolsScanViewTree(window);
+        [window.rootViewController.view setNeedsLayout];
+        [window.rootViewController.view layoutIfNeeded];
+        DYToolsScanViewTree(window);
+    });
+}
 
 %hook UILabel
 - (void)setText:(NSString *)text {
@@ -1091,9 +1159,6 @@ static void DYToolsApplyButtonVisibility(UIButton *button) {
 }
 %end
 
-@interface UIButton (DYToolsUIFeatures)
-@end
-
 %hook UIButton
 - (void)setTitle:(NSString *)title forState:(UIControlState)state {
     %orig(title, state);
@@ -1105,6 +1170,25 @@ static void DYToolsApplyButtonVisibility(UIButton *button) {
 }
 %end
 
+%hook UITextView
+- (void)setText:(NSString *)text {
+    %orig(text);
+    if (!DYToolsIsControlPanelView(self) &&
+        DYToolsShouldRemoveUIString(text)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+    }
+}
+- (void)layoutSubviews {
+    %orig;
+    if (!DYToolsIsControlPanelView(self) &&
+        DYToolsShouldRemoveUIString(self.text)) {
+        self.hidden = YES;
+        self.alpha = 0.0;
+    }
+}
+%end
+
 #pragma mark - DY-tools control panel
 
 @interface AWESettingItemModel : NSObject
@@ -1113,6 +1197,7 @@ static void DYToolsApplyButtonVisibility(UIButton *button) {
 @property(nonatomic,copy) NSString *subTitle;
 @property(nonatomic,copy) NSString *detail;
 @property(nonatomic,copy) NSString *svgIconImageName;
+@property(nonatomic,copy) NSString *iconImageName;
 @property(nonatomic,assign) NSInteger cellType;
 @property(nonatomic,assign) NSInteger colorStyle;
 @property(nonatomic,assign) BOOL isEnable;
@@ -1141,54 +1226,6 @@ static UIViewController *DYToolsTopViewController(void) {
     UIViewController *vc = window.rootViewController;
     while (vc.presentedViewController) vc = vc.presentedViewController;
     return vc;
-}
-
-static void DYToolsOpenGitHub(void) {
-    NSURL *url = [NSURL URLWithString:kDYToolsGitHubURL];
-    if (!url) return;
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIApplication *app = UIApplication.sharedApplication;
-        if ([app canOpenURL:url]) {
-            [app openURL:url options:@{} completionHandler:^(BOOL success) {
-                NSLog(@"[DY-tools] GitHub openURL success=%@", success ? @"YES" : @"NO");
-            }];
-        }
-    });
-}
-
-static void DYToolsShare(void) {
-    NSURL *url = [NSURL URLWithString:kDYToolsGitHubURL];
-    if (!url) return;
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIViewController *presenter = DYToolsTopViewController();
-        if (!presenter) return;
-
-        UIActivityViewController *share =
-            [[UIActivityViewController alloc] initWithActivityItems:@[
-                @"DY-tools",
-                url
-            ] applicationActivities:nil];
-
-        if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
-            share.popoverPresentationController.sourceView = presenter.view;
-            share.popoverPresentationController.sourceRect =
-                CGRectMake(CGRectGetMidX(presenter.view.bounds),
-                           CGRectGetMaxY(presenter.view.bounds) - 20.0,
-                           1.0, 1.0);
-        }
-
-        [presenter presentViewController:share animated:YES completion:nil];
-    });
-}
-
-static void DYToolsRefreshLayout(void) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = DYFSActiveWindow();
-        [window.rootViewController.view setNeedsLayout];
-        [window.rootViewController.view layoutIfNeeded];
-    });
 }
 
 @interface DYToolsControlViewController : UIViewController
@@ -1229,21 +1266,18 @@ static void DYToolsRefreshLayout(void) {
 
     _fullscreenSwitch = [UISwitch new];
     _fullscreenSwitch.on = DYFSIsEnabled();
-    [_fullscreenSwitch addTarget:self
-                          action:@selector(dy_fullscreenChanged:)
+    [_fullscreenSwitch addTarget:self action:@selector(dy_fullscreenChanged:)
                 forControlEvents:UIControlEventValueChanged];
 
     _removeShuiTingSwitch = [UISwitch new];
     _removeShuiTingSwitch.on = DYToolsBool(kDYToolsRemoveShuiTingKey);
-    [_removeShuiTingSwitch addTarget:self
-                               action:@selector(dy_removeShuiTingChanged:)
-                     forControlEvents:UIControlEventValueChanged];
+    [_removeShuiTingSwitch addTarget:self action:@selector(dy_removeShuiTingChanged:)
+                    forControlEvents:UIControlEventValueChanged];
 
     _removeRelatedSearchSwitch = [UISwitch new];
     _removeRelatedSearchSwitch.on = DYToolsBool(kDYToolsRemoveRelatedSearchKey);
-    [_removeRelatedSearchSwitch addTarget:self
-                                    action:@selector(dy_removeRelatedSearchChanged:)
-                          forControlEvents:UIControlEventValueChanged];
+    [_removeRelatedSearchSwitch addTarget:self action:@selector(dy_removeRelatedSearchChanged:)
+                    forControlEvents:UIControlEventValueChanged];
 }
 
 - (void)dy_close {
@@ -1252,27 +1286,22 @@ static void DYToolsRefreshLayout(void) {
 
 - (void)dy_fullscreenChanged:(UISwitch *)sender {
     BOOL enabled = sender.isOn;
-
-    [[NSUserDefaults standardUserDefaults] setBool:enabled
-                                              forKey:kDYFSFullScreenEnabledKey];
+    [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:kDYFSFullScreenEnabledKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
-
-    NSLog(@"[DY-tools] fullscreen -> %@", enabled ? @"ON" : @"OFF");
-
     if (!enabled) DYFSRunRestoreHooks();
-    DYToolsRefreshLayout();
+    DYToolsRefreshTargetUI();
 }
 
 - (void)dy_removeShuiTingChanged:(UISwitch *)sender {
     [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveShuiTingKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
-    DYToolsRefreshLayout();
+    DYToolsRefreshTargetUI();
 }
 
 - (void)dy_removeRelatedSearchChanged:(UISwitch *)sender {
     [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:kDYToolsRemoveRelatedSearchKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
-    DYToolsRefreshLayout();
+    DYToolsRefreshTargetUI();
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
@@ -1280,11 +1309,11 @@ static void DYToolsRefreshLayout(void) {
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? 2 : 1;
+    return section == 0 ? 1 : 2;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return section == 0 ? @"界面" : @"全屏功能";
+    return section == 0 ? @"全屏功能" : @"界面";
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
@@ -1295,20 +1324,25 @@ static void DYToolsRefreshLayout(void) {
          cellForRowAtIndexPath:(NSIndexPath *)indexPath {
 
     static NSString *reuse = @"DYToolsCell";
-    UITableViewCell *cell =
-        [tableView dequeueReusableCellWithIdentifier:reuse];
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
 
     if (!cell) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1
                                       reuseIdentifier:reuse];
     }
 
     cell.accessoryView = nil;
-    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    cell.accessoryType = UITableViewCellAccessoryNone;
     cell.imageView.image = nil;
     cell.detailTextLabel.text = nil;
 
     if (indexPath.section == 0) {
+        cell.textLabel.text = @"视频全屏";
+        cell.accessoryView = _fullscreenSwitch;
+        return cell;
+    }
+
+    if (indexPath.section == 1) {
         if (indexPath.row == 0) {
             cell.textLabel.text = @"移除文案下方去汽水听";
             cell.accessoryView = _removeShuiTingSwitch;
@@ -1316,26 +1350,10 @@ static void DYToolsRefreshLayout(void) {
             cell.textLabel.text = @"移除文案下相关搜索";
             cell.accessoryView = _removeRelatedSearchSwitch;
         }
-        cell.accessoryType = UITableViewCellAccessoryNone;
-        return cell;
-    }
-
-    if (indexPath.section == 1) {
-        cell.textLabel.text = @"视频全屏";
-        cell.accessoryView = _fullscreenSwitch;
-        cell.accessoryType = UITableViewCellAccessoryNone;
         return cell;
     }
 
     return cell;
-}
-
-- (void)tableView:(UITableView *)tableView
-didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-
-    [tableView deselectRowAtIndexPath:indexPath animated:YES];
-
-
 }
 
 @end
@@ -1344,7 +1362,6 @@ static void DYToolsPresentControlPanel(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIViewController *presenter = DYToolsTopViewController();
         if (!presenter) return;
-
         if ([presenter isKindOfClass:[DYToolsControlViewController class]]) return;
 
         DYToolsControlViewController *panel = [DYToolsControlViewController new];
@@ -1372,10 +1389,14 @@ static AWESettingItemModel *DYToolsMakeEntryItem(void) {
 
     AWESettingItemModel *item = [itemClass new];
     item.identifier = @"DYToolsControlPanel";
-    item.title = @"DY-tools 1.0";
+    item.title = @"DY-tools";
     item.subTitle = @"插件控制面板";
-    item.detail = @"";
+    item.detail = @"1.0";
+
+    // 同时设置两套抖音设置项图标字段，兼容不同 40.x 设置 Cell。
+    item.iconImageName = @"ic_settings_outlined";
     item.svgIconImageName = @"ic_settings_outlined";
+
     item.cellType = 26;
     item.colorStyle = 0;
     item.isEnable = YES;

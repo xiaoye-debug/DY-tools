@@ -47,6 +47,99 @@ BOOL DYFSIsEnabled(void) {
     if ([defaults objectForKey:kDYToolsHideLocationKey] == nil) {
         [defaults setBool:NO forKey:kDYToolsHideLocationKey];
     }
+    NSArray *dyTopBarKeys = @[
+        @"DYYYHideEntry",
+        @"DYYYHideShopButton",
+        @"DYYYHideDoubleColumnEntry",
+        @"DYYYHideMessageButton",
+        @"DYYYHideFriendsButton",
+        @"DYYYHideMyButton",
+        @"DYYYHidePlusButton",
+        @"DYYYHideHotSearch",
+        @"DYYYHideComment",
+        @"DYYYHideBottomDot",
+        @"DYYYHideBottomBg",
+        @"DYYYHidePadTabBarElements",
+        @"DYYYHideSidebarRecentApps",
+        @"DYYYHideSidebarRecentUsers",
+        @"DYYYHideSidebarDot",
+        @"DYYYHidePostView",
+        @"DYYYHideLOTAnimationView",
+        @"DYYYHideFollowPromptView",
+        @"DYYYHideLikeLabel",
+        @"DYYYHideCommentLabel",
+        @"DYYYHideCollectLabel",
+        @"DYYYHideShareLabel",
+        @"DYYYHideLikeButton",
+        @"DYYYHideCommentButton",
+        @"DYYYHideCollectButton",
+        @"DYYYHideAvatarButton",
+        @"DYYYHideMusicButton",
+        @"DYYYHideShareButton",
+        @"DYYYHideLocation",
+        @"DYYYHideDiscover",
+        @"DYYYHideInteractionSearch",
+        @"DYYYHideSearchBubble",
+        @"DYYYHideSearchSame",
+        @"DYYYHideSearchEntrance",
+        @"DYYYHideEnterLive",
+        @"DYYYHideCommentViews",
+        @"DYYYHidePushBanner",
+        @"DYYYHideMessageTabRedPacket",
+        @"DYYYHideAvatarList",
+        @"DYYYHideAvatarBubble",
+        @"DYYYHideLeftSideBar",
+        @"DYYYHideNearbyCapsuleView",
+        @"DYYYHideDanmuButton",
+        @"DYYYHideCancelMute",
+        @"DYYYHideQuqishuiting",
+        @"DYYYHideGongChuang",
+        @"DYYYHideHotspot",
+        @"DYYYHideRecommendTips",
+        @"DYYYHideShareContentView",
+        @"DYYYHideAntiAddictedNotice",
+        @"DYYYHideBottomRelated",
+        @"DYYYHideFeedAnchorContainer",
+        @"DYYYHideChallengeStickers",
+        @"DYYYHideEditTags",
+        @"DYYYHideTemplateTags",
+        @"DYYYHideHisShop",
+        @"DYYYHideTopBarLine",
+        @"DYYYHideTemplateVideo",
+        @"DYYYHideTemplatePlaylet",
+        @"DYYYHideLiveGIF",
+        @"DYYYHideItemTag",
+        @"DYYYHideTemplateGroup",
+        @"DYYYHideCameraLocation",
+        @"DYYYHideStoryProgressSlide",
+        @"DYYYHideDotsIndicator",
+        @"DYYYHidePrivateMessages",
+        @"DYYYHideRightLabel",
+        @"DYYYHideGroupShop",
+        @"DYYYHideLiveCapsuleView",
+        @"DYYYHideLiveView",
+        @"DYYYHideConcernCapsuleView",
+        @"DYYYHideMenuView",
+        @"DYYYHideGroupLiveIndicator",
+        @"DYYYHideGroupInputActionBar",
+        @"DYYYHideButton",
+        @"DYYYHideFamiliar",
+        @"DYYYHideLivePlayground",
+        @"DYYYHideGiftPavilion",
+        @"DYYYHideTopBarBadge",
+        @"DYYYHideLiveRoomClear",
+        @"DYYYHideLiveRoomMirroring",
+        @"DYYYHideLiveDiscovery",
+        @"DYYYHideKTVSongIndicator",
+        @"DYYYHideCellularAlert",
+        @"DYYYHidePendantGroup",
+        @"DYYYHideChapterProgress",
+        @"DYYYHideKeyboardAI",
+        @"DYYYHidePopover"
+    ];
+    for (NSString *key in dyTopBarKeys) {
+        if ([defaults objectForKey:key] == nil) [defaults setBool:NO forKey:key];
+    }
     [defaults synchronize];
     return [defaults boolForKey:kDYFSFullScreenEnabledKey];
 }
@@ -1255,6 +1348,1402 @@ static BOOL DYToolsBool(NSString *key) {
 
 %end
 
+
+#pragma mark - DYYY topbar removal hooks
+%hook AWEFeedLiveMarkView
+- (void)setHidden:(BOOL)hidden {
+    if (DYToolsBool(@"DYYYHideAvatarButton")) {
+        hidden = YES;
+    }
+
+    %orig(hidden);
+}
+%end
+
+%hook LOTAnimationView
+- (void)layoutSubviews {
+    %orig;
+    // 确保只有头像的LOTAnimationView才则执行该逻辑, 防止误杀
+    if ([self.superview isKindOfClass:%c(AWEPlayInteractionFollowPromptView)]) {
+        // 检查是否需要隐藏加号
+        if (DYToolsBool(@"DYYYHideLOTAnimationView") || DYToolsBool(@"DYYYHideFollowPromptView")) {
+            [self removeFromSuperview];
+            return;
+        }
+        // 应用透明度设置
+        NSString *transparencyValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYAvatarViewTransparency"];
+        if (transparencyValue && transparencyValue.length > 0) {
+            CGFloat alphaValue = [transparencyValue floatValue];
+            self.alpha = alphaValue;
+        }
+    }
+}
+%end
+
+%hook AWEAdAvatarView
+- (void)layoutSubviews {
+    %orig;
+
+    // 检查是否需要隐藏头像
+    if (DYToolsBool(@"DYYYHideAvatarButton")) {
+        self.hidden = YES;
+        return;
+    }
+
+    // 应用透明度设置
+    NSString *transparencyValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYAvatarViewTransparency"];
+    if (transparencyValue && transparencyValue.length > 0) {
+        CGFloat alphaValue = [transparencyValue floatValue];
+        if (alphaValue >= 0.0 && alphaValue <= 1.0) {
+            self.alpha = alphaValue;
+        }
+    }
+}
+%end
+
+%hook AWENearbySkyLightCapsuleView
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideNearbyCapsuleView")) {
+        [self removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AFDCancelMuteAwemeView
+- (void)layoutSubviews {
+    %orig;
+
+    UIView *superview = self.superview;
+
+    if ([superview isKindOfClass:NSClassFromString(@"AWEBaseElementView")]) {
+        if (DYToolsBool(@"DYYYHideCancelMute")) {
+            self.hidden = YES;
+            return;
+        }
+    }
+}
+%end
+
+%hook AWEPlayDanmakuInputContainView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideDanmuButton")) {
+        self.hidden = YES;
+        return;
+    }
+}
+
+%end
+
+%hook AWEShowPlayletCommentHeaderView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideCommentViews")) {
+        self.hidden = YES;
+        return;
+    }
+}
+
+%end
+
+%hook AWEPOIEntryAnchorView
+
+- (void)p_addViews {
+    if (DYToolsBool(@"DYYYHideCommentViews")) {
+        return;
+    }
+    %orig;
+}
+
+%end
+
+%hook AWECommentPanelHeaderSwiftImpl_CommentHeaderGeneralView
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideCommentViews")) {
+        [self setHidden:YES];
+    }
+}
+%end
+
+%hook AWECommentPanelHeaderSwiftImpl_CommentHeaderGoodsView
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideCommentViews")) {
+        [self setHidden:YES];
+    }
+}
+%end
+
+%hook AWECommentPanelHeaderSwiftImpl_CommentHeaderTemplateAnchorView
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideCommentViews")) {
+        [self setHidden:YES];
+    }
+}
+%end
+
+%hook AWECommentPanelListSwiftImpl_CommentBottomTipsContainerViewController
+- (void)viewWillAppear:(BOOL)animated {
+    %orig(animated);
+    if (DYToolsBool(@"DYYYHideCommentTips")) {
+        ((UIViewController *)self).view.hidden = YES;
+    }
+}
+%end
+
+%hook AWESearchAnchorListModel
+
+- (BOOL)hideWords {
+    return DYToolsBool(@"DYYYHideCommentViews");
+}
+
+%end
+
+%hook AWEDiscoverFeedEntranceView
+- (id)init {
+    if (DYToolsBool(@"DYYYHideInteractionSearch")) {
+        return nil;
+    }
+    return %orig;
+}
+%end
+
+%hook AWETemplateTagsCommonView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideTemplateTags")) {
+        UIView *parentView = self.superview;
+        if (parentView) {
+            parentView.hidden = YES;
+        } else {
+            self.hidden = YES;
+        }
+    }
+}
+
+%end
+
+%hook AFDSkylightCellBubble
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideAvatarBubble")) {
+        [self removeFromSuperview];
+    }
+    %orig;
+}
+%end
+
+%hook AWEIMMessageTabOptPushBannerView
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (DYToolsBool(@"DYYYHidePushBanner")) {
+        return %orig(CGRectMake(frame.origin.x, frame.origin.y, 0, 0));
+    }
+    return %orig;
+}
+
+%end
+
+%hook AWEIMMessageTabSideBarView
+- (void)layoutSubviews {
+    %orig;
+
+    if (!DYToolsBool(@"DYYYHideMessageTabRedPacket")) {
+        return;
+    }
+
+    UIView *parentView = self.superview;
+    if (!parentView) {
+        return;
+    }
+
+    NSArray<UIView *> *siblings = [parentView.subviews copy];
+    if (siblings.count <= 1) {
+        return;
+    }
+
+    for (UIView *subview in siblings) {
+        if (subview != self) {
+            [subview removeFromSuperview];
+        }
+    }
+}
+%end
+
+%hook AWEProfileNavigationButton
+- (void)setupUI {
+
+    if (DYToolsBool(@"DYYYHideButton")) {
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEFeedUnfollowFamiliarFollowAndDislikeView
+- (void)showUnfollowFamiliarView {
+    if (DYToolsBool(@"DYYYHideFamiliar")) {
+        self.hidden = YES;
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEFamiliarNavView
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideFamiliar")) {
+        self.hidden = YES;
+    }
+    %orig;
+}
+%end
+
+%hook AWEPlayInteractionStrongifyShareContentView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideShareContentView")) {
+        UIView *parentView = self.superview;
+        if (parentView) {
+            parentView.hidden = YES;
+        } else {
+            self.hidden = YES;
+        }
+    }
+}
+
+%end
+
+%hook AWELeftSideBarEntranceView
+
+- (void)setRedDot:(id)redDot {
+    %orig(nil);
+}
+
+- (void)setNumericalRedDot:(id)numericalRedDot {
+    %orig(nil);
+}
+
+- (void)layoutSubviews {
+    %orig;
+
+    // 隐藏左侧边栏的 badge
+    for (UIView *subview in self.subviews) {
+        if ([subview isKindOfClass:%c(DUXBadge)]) {
+            subview.hidden = YES;
+            break;
+        }
+    }
+
+    UIResponder *responder = self;
+    UIViewController *parentVC = nil;
+    while ((responder = [responder nextResponder])) {
+        if ([responder isKindOfClass:%c(AWEFeedContainerViewController)]) {
+            parentVC = (UIViewController *)responder;
+            break;
+        }
+    }
+
+    if (!(parentVC && [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLeftSideBar"])) {
+        return;
+    }
+
+    static char kDYLeftSideViewCacheKey;
+    NSArray *cachedViews = objc_getAssociatedObject(self, &kDYLeftSideViewCacheKey);
+    if (!cachedViews) {
+        NSMutableArray *views = [NSMutableArray array];
+        for (UIView *subview in self.subviews) {
+            if ([subview isKindOfClass:%c(DUXBaseImageView)]) {
+                [views addObject:subview];
+            }
+        }
+        cachedViews = [views copy];
+        objc_setAssociatedObject(self, &kDYLeftSideViewCacheKey, cachedViews, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    for (UIView *v in cachedViews) {
+        v.hidden = YES;
+    }
+}
+
+%end
+
+%hook AWEFeedVideoButton
+
+- (void)layoutSubviews {
+    %orig;
+
+    NSString *accessibilityLabel = self.accessibilityLabel;
+
+    BOOL hideBtn = NO;
+    BOOL hideLabel = NO;
+
+    if ([accessibilityLabel isEqualToString:@"点赞"]) {
+        hideBtn = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLikeButton"];
+        hideLabel = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLikeLabel"];
+    } else if ([accessibilityLabel isEqualToString:@"评论"]) {
+        hideBtn = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentButton"];
+        hideLabel = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentLabel"];
+    } else if ([accessibilityLabel isEqualToString:@"分享"]) {
+        hideBtn = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideShareButton"];
+        hideLabel = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideShareLabel"];
+    } else if ([accessibilityLabel isEqualToString:@"收藏"]) {
+        hideBtn = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCollectButton"];
+        hideLabel = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCollectLabel"];
+    }
+
+    if (!hideBtn && !hideLabel) {
+        return; // 设置未启用，无需额外处理
+    }
+
+    if (hideBtn) {
+        [self removeFromSuperview];
+        return;
+    }
+
+    static char kDYLabelCacheKey;
+    NSArray *cachedLabels = objc_getAssociatedObject(self, &kDYLabelCacheKey);
+    if (!cachedLabels) {
+        NSMutableArray *labels = [NSMutableArray array];
+        for (UIView *subview in self.subviews) {
+            if ([subview isKindOfClass:[UILabel class]]) {
+                [labels addObject:subview];
+            }
+        }
+        cachedLabels = [labels copy];
+        objc_setAssociatedObject(self, &kDYLabelCacheKey, cachedLabels, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    for (UILabel *label in cachedLabels) {
+        label.hidden = hideLabel;
+    }
+}
+
+%end
+
+%hook AWEHPSearchBubbleEntranceView
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideSearchBubble")) {
+        [self removeFromSuperview];
+        return;
+    }
+}
+
+%end
+
+%hook AWEPlayInteractionFollowPromptView
+
+- (void)layoutSubviews {
+    %orig;
+
+    NSString *accessibilityLabel = self.accessibilityLabel;
+
+    if ([accessibilityLabel isEqualToString:@"关注"]) {
+        if (DYToolsBool(@"DYYYHideAvatarButton") || DYToolsBool(@"DYYYHideFollowPromptView")) {
+            self.userInteractionEnabled = NO;
+            self.hidden = YES;
+            return;
+        }
+    }
+}
+
+%end
+
+%hook AWEHotSearchInnerBottomView
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideHotSearch")) {
+        [self removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWESearchEntranceView
+
+- (void)layoutSubviews {
+
+    if (DYToolsBool(@"DYYYHideSearchEntrance")) {
+        self.hidden = YES;
+        return;
+    }
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideSearchEntranceIndicator"]) {
+        static char kDYSearchIndicatorKey;
+        NSArray *indicatorViews = objc_getAssociatedObject(self, &kDYSearchIndicatorKey);
+        if (!indicatorViews) {
+            NSMutableArray *tmp = [NSMutableArray array];
+            for (UIView *subviews in self.subviews) {
+                if ([subviews isKindOfClass:%c(UIImageView)] && [NSStringFromClass([((UIImageView *)subviews).image class]) isEqualToString:@"_UIResizableImage"]) {
+                    [tmp addObject:subviews];
+                }
+            }
+            indicatorViews = [tmp copy];
+            objc_setAssociatedObject(self, &kDYSearchIndicatorKey, indicatorViews, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+
+        for (UIImageView *imgView in indicatorViews) {
+            imgView.hidden = YES;
+        }
+    }
+
+    %orig;
+}
+
+%end
+
+%hook AWEStoryProgressSlideView
+
+- (void)layoutSubviews {
+    %orig;
+
+    BOOL shouldHide = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideStoryProgressSlide"];
+    if (!shouldHide)
+        return;
+
+    static char kDYStoryProgressCacheKey;
+    UIView *targetView = objc_getAssociatedObject(self, &kDYStoryProgressCacheKey);
+    if (!targetView) {
+        for (UIView *obj in self.subviews) {
+            if ([obj isKindOfClass:NSClassFromString(@"UISlider")] || obj.frame.size.height < 5) {
+                targetView = obj.superview;
+                break;
+            }
+        }
+        if (targetView) {
+            objc_setAssociatedObject(self, &kDYStoryProgressCacheKey, targetView, OBJC_ASSOCIATION_ASSIGN);
+        }
+    }
+
+    if (targetView) {
+        targetView.hidden = YES;
+    }
+}
+
+%end
+
+%hook AFDNewFastReplyView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHidePrivateMessages")) {
+        UIView *parentView = self.superview;
+        if (parentView) {
+            parentView.hidden = YES;
+        } else {
+            self.hidden = YES;
+        }
+    }
+}
+
+%end
+
+%hook AWEFeedLiveTabRevisitControlView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideLiveDiscovery")) {
+        self.hidden = YES;
+        return;
+    }
+}
+%end
+
+%hook IESLiveKTVSongIndicatorView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideKTVSongIndicator")) {
+        self.hidden = YES;
+        return;
+    }
+}
+%end
+
+%hook UILabel
+
+static NSHashTable *processedParentViews = nil;
+
++ (void)load {
+    %orig;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+      processedParentViews = [NSHashTable weakObjectsHashTable];
+    });
+}
+
+- (void)layoutSubviews {
+    %orig;
+
+    BOOL hideRightLabel = DYToolsBool(@"DYYYHideRightLabel");
+    if (!hideRightLabel)
+        return;
+
+    NSString *accessibilityLabel = self.accessibilityLabel;
+    if (!accessibilityLabel || accessibilityLabel.length == 0)
+        return;
+
+    // 避免重复处理同一个父视图
+    UIView *parentView = self.superview;
+    if (!parentView)
+        return;
+
+    @synchronized(processedParentViews) {
+        if ([processedParentViews containsObject:parentView]) {
+            return;
+        }
+    }
+
+    NSString *trimmedLabel = [accessibilityLabel stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    BOOL shouldRemove = NO;
+
+    if ([trimmedLabel hasSuffix:@"人共创"] && trimmedLabel.length > 3) {
+        NSString *prefix = [trimmedLabel substringToIndex:trimmedLabel.length - 3];
+        NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
+        shouldRemove = ([prefix rangeOfCharacterFromSet:nonDigits].location == NSNotFound);
+    }
+
+    if (!shouldRemove) {
+        shouldRemove = [trimmedLabel isEqualToString:@"章节要点"] || [trimmedLabel isEqualToString:@"图集"] || [trimmedLabel isEqualToString:@"下一章"];
+    }
+
+    if (shouldRemove) {
+        @synchronized(processedParentViews) {
+            [processedParentViews addObject:parentView];
+        }
+
+        UIView *grandparentView = parentView.superview; // 爷爷视图
+
+        if (grandparentView) {
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+              if ([grandparentView isKindOfClass:[UIStackView class]]) {
+                  UIStackView *stackView = (UIStackView *)grandparentView;
+                  [stackView removeArrangedSubview:parentView];
+              }
+
+              [parentView removeFromSuperview];
+
+              // 强制刷新爷爷视图布局
+              [grandparentView setNeedsLayout];
+              [grandparentView layoutIfNeeded];
+            });
+        }
+    }
+}
+
+%end
+
+%hook AWEFeedMultiTabSelectedContainerView
+
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideTopBarLine")) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
+%hook AFDRecommendToFriendEntranceLabel
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideRecommendTips")) {
+        if (self.accessibilityLabel) {
+            [self removeFromSuperview];
+        }
+    }
+}
+
+%end
+
+%hook AWEProfileMixItemCollectionViewCell
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHidePostView")) {
+        if ([self.accessibilityLabel isEqualToString:@"私密作品"]) {
+            self.hidden = YES;
+            return;
+        }
+    }
+}
+%end
+
+%hook AWEProfilePostEmptyPublishGuideCollectionViewCell
+
+- (void)didMoveToSuperview {
+    %orig;
+    if (DYToolsBool(@"DYYYHidePostView")) {
+        if ([(UIView *)self superview]) {
+            [(UIView *)self setHidden:YES];
+        }
+    }
+}
+
+%end
+
+%hook AWEProfileTaskCardStyleListCollectionViewCell
+- (BOOL)shouldShowPublishGuide {
+    if (DYToolsBool(@"DYYYHidePostView")) {
+        return NO;
+    }
+    return %orig;
+}
+%end
+
+%hook AWEProfileRichEmptyView
+
+- (void)setTitle:(id)title {
+    if (DYToolsBool(@"DYYYHidePostView")) {
+        return;
+    }
+    %orig(title);
+}
+
+- (void)setDetail:(id)detail {
+    if (DYToolsBool(@"DYYYHidePostView")) {
+        return;
+    }
+    %orig(detail);
+}
+%end
+
+%hook AWENewLiveSkylightViewController
+
+- (void)showSkylight:(BOOL)arg0 animated:(BOOL)arg1 actionMethod:(unsigned long long)arg2 {
+    if (DYToolsBool(@"DYYYHideLiveView")) {
+        return;
+    }
+    %orig(arg0, arg1, arg2);
+}
+
+- (void)updateIsSkylightShowing:(BOOL)arg0 {
+    if (DYToolsBool(@"DYYYHideLiveView")) {
+        %orig(NO);
+    } else {
+        %orig(arg0);
+    }
+}
+
+%end
+
+%hook AWELiveSkylightViewModel
+
+- (id)dataSource {
+	BOOL DYYYHideConcernCapsuleView = DYToolsBool(@"DYYYHideConcernCapsuleView");
+	if (DYYYHideConcernCapsuleView) {
+		return nil;
+	}
+	return %orig;
+}
+
+- (void)setDataSource:(id)dataSource {
+	BOOL DYYYHideConcernCapsuleView = DYToolsBool(@"DYYYHideConcernCapsuleView");
+	if (DYYYHideConcernCapsuleView) {
+		%orig(nil);
+		return;
+	}
+	%orig;
+}
+
+%end
+
+%hook AWELiveAutoEnterStyleAView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideLiveView")) {
+        self.hidden = YES;
+        return;
+    }
+}
+
+%end
+
+%hook AWENearbyFullScreenViewModel
+
+- (void)setShowSkyLight:(id)arg1 {
+    if (DYToolsBool(@"DYYYHideMenuView")) {
+        arg1 = nil;
+    }
+    %orig(arg1);
+}
+
+- (void)setHaveSkyLight:(id)arg1 {
+    if (DYToolsBool(@"DYYYHideMenuView")) {
+        arg1 = nil;
+    }
+    %orig(arg1);
+}
+
+%end
+
+%hook AWECorrelationItemTag
+
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideItemTag")) {
+        self.hidden = YES;
+        return;
+    }
+}
+
+%end
+
+%hook AWEHPDiscoverFeedEntranceView
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideDiscover")) {
+        UIView *firstSubview = self.subviews.firstObject;
+        if ([firstSubview isKindOfClass:[UIImageView class]]) {
+            ((UIImageView *)firstSubview).image = nil;
+        }
+    }
+}
+
+%end
+
+%hook AWEIMCellLiveStatusContainerView
+
+- (void)p_initUI {
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYHideGroupLiveIndicator"])
+        %orig;
+}
+%end
+
+%hook AWELiveStatusIndicatorView
+
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideGroupLiveIndicator")) {
+        self.hidden = YES;
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWELiveFeedLabelTagView
+- (void)layoutSubviews {
+
+    if (DYToolsBool(@"DYYYHideLiveCapsuleView")) {
+        UIView *parentView = self.superview;
+        if (parentView) {
+            parentView.hidden = YES;
+            return;
+        } else {
+            self.hidden = YES;
+            return;
+        }
+    }
+    %orig;
+}
+
+%end
+
+%hook AWEPlayInteractionLiveExtendGuideView
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideLiveCapsuleView")) {
+        [self removeFromSuperview];
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEHPTopTabItemBadgeContentView
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideConcernCapsuleView")) {
+        self.hidden = YES;
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEIMFansGroupTopDynamicDomainTemplateView
+- (void)layoutSubviews {
+    if (DYToolsBool(@"DYYYHideGroupShop")) {
+        self.hidden = YES;
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEIMInputActionBarInteractor
+
+- (void)p_setupUI {
+    if (DYToolsBool(@"DYYYHideGroupInputActionBar")) {
+        self.hidden = YES;
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWETemplateCommonView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideCameraLocation")) {
+        [self removeFromSuperview];
+    }
+}
+%end
+
+%hook AWEHPTopBarCTAItemView
+
+- (void)showRedDot {
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYHideSidebarDot"])
+        %orig;
+}
+
+- (void)hideCountRedDot {
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYHideSidebarDot"])
+        %orig;
+}
+
+- (void)layoutSubviews {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideSidebarDot"]) {
+        return;
+    }
+
+    static char kDYSidebarBadgeCacheKey;
+    NSArray *cachedBadges = objc_getAssociatedObject(self, &kDYSidebarBadgeCacheKey);
+    if (!cachedBadges) {
+        NSMutableArray *badges = [NSMutableArray array];
+        for (UIView *subview in self.subviews) {
+            if ([subview isKindOfClass:%c(DUXBadge)]) {
+                [badges addObject:subview];
+            }
+        }
+        cachedBadges = [badges copy];
+        objc_setAssociatedObject(self, &kDYSidebarBadgeCacheKey, cachedBadges, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    for (UIView *badge in cachedBadges) {
+        badge.hidden = YES;
+    }
+}
+%end
+
+%hook ACCStickerContainerView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideSearchSame")) {
+        [self removeFromSuperview];
+    }
+}
+%end
+
+%hook BDXWebView
+- (void)layoutSubviews {
+    %orig;
+
+    BOOL enabled = DYToolsBool(@"DYYYHideGiftPavilion");
+    if (!enabled)
+        return;
+
+    NSString *title = [self valueForKey:@"title"];
+
+    if ([title containsString:@"任务Banner"] || [title containsString:@"活动Banner"]) {
+        self.hidden = YES;
+    }
+}
+%end
+
+%hook AWEVideoTypeTagView
+
+- (void)setupUI {
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYHideLiveGIF"])
+        %orig;
+}
+%end
+
+%hook IESLiveFeedDrawerEntranceView
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideLivePlayground")) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
+%hook IESLiveButton
+
+- (void)layoutSubviews {
+    %orig;
+    BOOL hideClear = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveRoomClear"];
+    BOOL hideMirror = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveRoomMirroring"];
+    BOOL hideFull = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveRoomFullscreen"];
+    BOOL hideClose = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveRoomClose"];
+
+    if (!(hideClear || hideMirror || hideFull)) {
+        return;
+    }
+
+    NSString *label = self.accessibilityLabel;
+    if (hideClear && [label isEqualToString:@"退出清屏"] && self.superview) {
+        [self.superview removeFromSuperview];
+        return;
+    } else if (hideMirror && [label isEqualToString:@"投屏"] && self.superview) {
+        self.superview.hidden = YES;
+        return;
+    } else if (hideFull && [label isEqualToString:@"横屏"] && self.superview) {
+        static char kDYLiveButtonCacheKey;
+        NSArray *cached = objc_getAssociatedObject(self, &kDYLiveButtonCacheKey);
+        if (!cached) {
+            cached = [self.subviews copy];
+            objc_setAssociatedObject(self, &kDYLiveButtonCacheKey, cached, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        for (UIView *subview in cached) {
+            subview.hidden = YES;
+        }
+        return;
+    } else if (hideClose && [self.superview isKindOfClass:%c(HTSLive4LayerContainerView)]) {
+        self.hidden = YES;
+        return;
+    }
+}
+
+%end
+
+%hook AWELiveFlowAlertView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideCellularAlert")) {
+        self.hidden = YES;
+        return;
+    }
+}
+%end
+
+%hook AWEInteractionHashtagStickerModel
+
+- (id)hashtagInfo {
+	BOOL DYYYHideChallengeStickers = DYToolsBool(@"DYYYHideChallengeStickers");
+	if (DYYYHideChallengeStickers) {
+		return nil;
+	}
+	return %orig;
+}
+
+- (void)setHashtagInfo:(id)info {
+	BOOL DYYYHideChallengeStickers = DYToolsBool(@"DYYYHideChallengeStickers");
+	if (DYYYHideChallengeStickers) {
+		%orig(nil);
+		return;
+	}
+	%orig;
+}
+
+- (id)hashtagId {
+	BOOL DYYYHideChallengeStickers = DYToolsBool(@"DYYYHideChallengeStickers");
+	if (DYYYHideChallengeStickers) {
+		return nil;
+	}
+	return %orig;
+}
+
+- (id)hashtagName {
+	BOOL DYYYHideChallengeStickers = DYToolsBool(@"DYYYHideChallengeStickers");
+	if (DYYYHideChallengeStickers) {
+		return nil;
+	}
+	return %orig;
+}
+
+%end
+
+%hook AWEHotSpotListModel
+
+- (BOOL)disableDisplay {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return YES;
+	}
+	return %orig;
+}
+
+- (BOOL)disableDisplayInner {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return YES;
+	}
+	return %orig;
+}
+
+- (NSString *)hotSpotTipTitleHeader {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @"";
+	}
+	return %orig;
+}
+
+- (NSString *)hotSpotTipTitle {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @"";
+	}
+	return %orig;
+}
+
+- (NSString *)hotSpotTipTitleFooter {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @"";
+	}
+	return %orig;
+}
+
+- (NSString *)hotInfoWord {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @"";
+	}
+	return %orig;
+}
+
+- (NSString *)i18NTipTitle {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @"";
+	}
+	return %orig;
+}
+
+- (NSString *)tipSchema {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return nil;
+	}
+	return %orig;
+}
+
+- (NSDictionary *)extraDictionary {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @{};
+	}
+	return %orig;
+}
+
+- (NSDictionary *)relativityExtra {
+	BOOL DYYYHideHotspot = DYToolsBool(@"DYYYHideHotspot");
+	if (DYYYHideHotspot) {
+		return @{};
+	}
+	return %orig;
+}
+
+%end
+
+%hook AWERelatedMusicAnchorModel
+
+- (instancetype)init {
+	BOOL DYYYHideQuqishuiting = DYToolsBool(@"DYYYHideQuqishuiting");
+	if (DYYYHideQuqishuiting) {
+		return nil;
+	}
+	return %orig;
+}
+
+- (instancetype)initWithDictionary:(id)dict error:(NSError **)error {
+	BOOL DYYYHideQuqishuiting = DYToolsBool(@"DYYYHideQuqishuiting");
+	if (DYYYHideQuqishuiting) {
+		return nil;
+	}
+	return %orig;
+}
+
+%end
+
+%hook AWEMusicExtraModel
+
+- (id)commentTopBarInfo {
+	BOOL DYYYHideQuqishuiting = DYToolsBool(@"DYYYHideQuqishuiting");
+	if (DYYYHideQuqishuiting) {
+		return nil;
+	}
+	return %orig;
+}
+
+- (void)setCommentTopBarInfo:(id)info {
+	BOOL DYYYHideQuqishuiting = DYToolsBool(@"DYYYHideQuqishuiting");
+	if (DYYYHideQuqishuiting) {
+		%orig(nil);
+		return;
+	}
+	%orig;
+}
+
+%end
+
+%hook AWEPlayInteractionUserAvatarView
+- (void)layoutSubviews {
+    %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideFollowPromptView"]) {
+        return;
+    }
+
+    static char kDYAvatarCacheKey;
+    NSArray *viewCache = objc_getAssociatedObject(self, &kDYAvatarCacheKey);
+    if (!viewCache) {
+        NSMutableArray *tmp = [NSMutableArray array];
+        for (UIView *subview in self.subviews) {
+            if ([subview isMemberOfClass:[UIView class]]) {
+                [tmp addObject:subview];
+            }
+        }
+        viewCache = [tmp copy];
+        objc_setAssociatedObject(self, &kDYAvatarCacheKey, viewCache, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    for (UIView *container in viewCache) {
+        for (UIView *child in container.subviews) {
+            child.alpha = 0.0;
+        }
+    }
+}
+%end
+
+%hook AWETabBarElementContainerView
+
+- (void)setHidden:(BOOL)hidden {
+    if (DYToolsBool(@"DYYYHidePadTabBarElements")) {
+        %orig(YES);
+        return;
+    }
+
+    %orig(hidden);
+}
+
+%end
+
+%hook AWENormalModeTabBarBadgeContainerView
+
+- (void)layoutSubviews {
+    %orig;
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideBottomDot"]) {
+        return;
+    }
+
+    static char kDYBadgeCacheKey;
+    NSArray *badges = objc_getAssociatedObject(self, &kDYBadgeCacheKey);
+    if (!badges) {
+        NSMutableArray *tmp = [NSMutableArray array];
+        for (UIView *subview in [self subviews]) {
+            if ([subview isKindOfClass:NSClassFromString(@"DUXBadge")]) {
+                [tmp addObject:subview];
+            }
+        }
+        badges = [tmp copy];
+        objc_setAssociatedObject(self, &kDYBadgeCacheKey, badges, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    for (UIView *badge in badges) {
+        badge.hidden = YES;
+    }
+}
+
+%end
+
+%hook AWENormalModeTabBarGeneralPlusButton
++ (id)button {
+    BOOL isHidePlusButton = DYToolsBool(@"DYYYHidePlusButton");
+    if (isHidePlusButton) {
+        return nil;
+    }
+    return %orig;
+}
+%end
+
+%hook AWENormalModeTabBarGeneralPlusInnerButton
++ (id)buttonWithParams:(id)arg1 {
+    if (DYToolsBool(@"DYYYHidePlusButton")) {
+        return nil;
+    }
+    return %orig;
+}
+%end
+
+%hook AWENormalModeTabBarFeedView
+
+- (void)layoutSubviews {
+    @try {
+        %orig;
+        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideDoubleColumnEntry"]) {
+            return;
+        }
+
+        static char kDYDoubleColumnCacheKey;
+        static char kDYDoubleColumnCountKey;
+        NSArray *cachedViews = objc_getAssociatedObject(self, &kDYDoubleColumnCacheKey);
+        NSNumber *cachedCount = objc_getAssociatedObject(self, &kDYDoubleColumnCountKey);
+        if (!cachedViews || cachedCount.unsignedIntegerValue != self.subviews.count) {
+            NSMutableArray *views = [NSMutableArray array];
+            for (UIView *subview in self.subviews) {
+                if (![subview isKindOfClass:[UILabel class]]) {
+                    [views addObject:subview];
+                }
+            }
+            cachedViews = [views copy];
+            objc_setAssociatedObject(self, &kDYDoubleColumnCacheKey, cachedViews, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(self, &kDYDoubleColumnCountKey, @(self.subviews.count), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+
+        for (UIView *v in cachedViews) {
+            v.hidden = YES;
+        }
+
+        if (![NSThread isMainThread]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+              [self layoutSubviews];
+            });
+            return;
+        }
+
+        if (!self || !self.superview) {
+            return;
+        }
+
+        NSString *indexTitle = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYIndexTitle"];
+
+        if (!(indexTitle.length)) {
+            return;
+        }
+
+        static char kDYTabFeedLabelCacheKey;
+        NSArray *labelCache = objc_getAssociatedObject(self, &kDYTabFeedLabelCacheKey);
+        if (!labelCache) {
+            NSMutableArray *tmp = [NSMutableArray array];
+            if (!tmp) {
+                return;
+            }
+
+            NSArray *subviews = [self subviews];
+            if (!subviews) {
+                return;
+            }
+
+            for (UIView *subview in subviews) {
+                if (subview && [subview isKindOfClass:[UILabel class]]) {
+                    [tmp addObject:subview];
+                }
+            }
+
+            labelCache = [tmp copy];
+            if (labelCache) {
+                objc_setAssociatedObject(self, &kDYTabFeedLabelCacheKey, labelCache, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+        }
+
+        if (!labelCache) {
+            return;
+        }
+
+        for (UILabel *label in labelCache) {
+            if (!label || ![label isKindOfClass:[UILabel class]]) {
+                continue;
+            }
+
+            NSString *labelText = label.text;
+            if (!labelText) {
+                continue;
+            }
+
+            if ([labelText isEqualToString:@"首页"] && indexTitle.length > 0) {
+                label.text = indexTitle;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                  [self setNeedsLayout];
+                });
+            }
+        }
+
+    } @catch (NSException *exception) {
+        return;
+    }
+}
+%end
+
+%hook AWECommentInputBackgroundView
+- (void)layoutSubviews {
+    %orig;
+
+    if (DYToolsBool(@"DYYYHideComment")) {
+        [self removeFromSuperview];
+        return;
+    }
+
+    CGAffineTransform newTransform = CGAffineTransformMakeTranslation(0, originalTabBarHeight - gCurrentTabBarHeight);
+
+    if (!CGAffineTransformEqualToTransform(self.transform, newTransform)) {
+        self.transform = newTransform;
+    }
+}
+%end
+
+%hook AWEIMSkylightListView
+- (void)setFrame:(CGRect)frame {
+    if (DYToolsBool(@"DYYYHideAvatarList")) {
+        CGFloat scale = [UIScreen mainScreen].scale ?: 2.0;
+        CGFloat minH = MAX(1.0 / scale, 0.5);
+        frame.size.height = minH;
+    }
+    %orig(frame);
+}
+%end
+
+%hook UIImageView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHideCommentDiscover")) {
+        if (!self.accessibilityLabel) {
+            UIView *parentView = self.superview;
+
+            if (parentView && [parentView class] == [UIView class] && [parentView.accessibilityLabel isEqualToString:@"搜索"]) {
+                self.hidden = YES;
+            }
+
+            else if (parentView && [NSStringFromClass([parentView class]) isEqualToString:@"AWESearchEntryHalfScreenElement"] && [parentView.accessibilityLabel isEqualToString:@"搜索"]) {
+                self.hidden = YES;
+            }
+        }
+    }
+    return;
+}
+%end
+
+%hook AWEIncentiveSwiftImplDOUYINLite_IncentivePendantContainerView
+- (void)layoutSubviews {
+    %orig;
+    if (DYToolsBool(@"DYYYHidePendantGroup")) {
+        [self removeFromSuperview];
+    }
+}
+%end
+
 #pragma mark - DY-tools control panel
 
 @interface AWESettingItemModel : NSObject
@@ -1291,6 +2780,163 @@ static UIViewController *DYToolsTopViewController(void) {
     while (vc.presentedViewController) vc = vc.presentedViewController;
     return vc;
 }
+
+@interface DYToolsTopBarViewController : UITableViewController
+@end
+
+@implementation DYToolsTopBarViewController {
+    NSArray<NSDictionary *> *_items;
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"移除顶栏";
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+    self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.tableView.rowHeight = 52.0;
+    _items = @[
+        @{@"title":@"隐藏全屏观看", @"key":@"DYYYHideEntry"},
+        @{@"title":@"隐藏底栏商城", @"key":@"DYYYHideShopButton"},
+        @{@"title":@"隐藏双列箭头", @"key":@"DYYYHideDoubleColumnEntry"},
+        @{@"title":@"隐藏底栏消息", @"key":@"DYYYHideMessageButton"},
+        @{@"title":@"隐藏底栏朋友", @"key":@"DYYYHideFriendsButton"},
+        @{@"title":@"隐藏底栏我的", @"key":@"DYYYHideMyButton"},
+        @{@"title":@"隐藏底栏加号", @"key":@"DYYYHidePlusButton"},
+        @{@"title":@"隐藏底栏热榜", @"key":@"DYYYHideHotSearch"},
+        @{@"title":@"隐藏底栏评论", @"key":@"DYYYHideComment"},
+        @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
+        @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},
+        @{@"title":@"精简平板底栏", @"key":@"DYYYHidePadTabBarElements"},
+        @{@"title":@"隐藏常用小程序", @"key":@"DYYYHideSidebarRecentApps"},
+        @{@"title":@"隐藏常访问的人", @"key":@"DYYYHideSidebarRecentUsers"},
+        @{@"title":@"隐藏侧栏红点", @"key":@"DYYYHideSidebarDot"},
+        @{@"title":@"隐藏发作品框", @"key":@"DYYYHidePostView"},
+        @{@"title":@"隐藏头像加号", @"key":@"DYYYHideLOTAnimationView"},
+        @{@"title":@"移除头像加号", @"key":@"DYYYHideFollowPromptView"},
+        @{@"title":@"隐藏点赞数值", @"key":@"DYYYHideLikeLabel"},
+        @{@"title":@"隐藏评论数值", @"key":@"DYYYHideCommentLabel"},
+        @{@"title":@"隐藏收藏数值", @"key":@"DYYYHideCollectLabel"},
+        @{@"title":@"隐藏分享数值", @"key":@"DYYYHideShareLabel"},
+        @{@"title":@"隐藏点赞按钮", @"key":@"DYYYHideLikeButton"},
+        @{@"title":@"隐藏评论按钮", @"key":@"DYYYHideCommentButton"},
+        @{@"title":@"隐藏收藏按钮", @"key":@"DYYYHideCollectButton"},
+        @{@"title":@"隐藏头像按钮", @"key":@"DYYYHideAvatarButton"},
+        @{@"title":@"隐藏音乐按钮", @"key":@"DYYYHideMusicButton"},
+        @{@"title":@"隐藏分享按钮", @"key":@"DYYYHideShareButton"},
+        @{@"title":@"隐藏视频定位", @"key":@"DYYYHideLocation"},
+        @{@"title":@"隐藏右上搜索", @"key":@"DYYYHideDiscover"},
+        @{@"title":@"隐藏相关搜索", @"key":@"DYYYHideInteractionSearch"},
+        @{@"title":@"隐藏弹出热搜", @"key":@"DYYYHideSearchBubble"},
+        @{@"title":@"隐藏搜索同款", @"key":@"DYYYHideSearchSame"},
+        @{@"title":@"隐藏长框搜索", @"key":@"DYYYHideSearchEntrance"},
+        @{@"title":@"隐藏进入直播", @"key":@"DYYYHideEnterLive"},
+        @{@"title":@"隐藏评论视图", @"key":@"DYYYHideCommentViews"},
+        @{@"title":@"隐藏通知提示", @"key":@"DYYYHidePushBanner"},
+        @{@"title":@"隐藏消息顶栏红包", @"key":@"DYYYHideMessageTabRedPacket"},
+        @{@"title":@"隐藏头像列表", @"key":@"DYYYHideAvatarList"},
+        @{@"title":@"隐藏头像气泡", @"key":@"DYYYHideAvatarBubble"},
+        @{@"title":@"隐藏左侧边栏", @"key":@"DYYYHideLeftSideBar"},
+        @{@"title":@"隐藏吃喝玩乐", @"key":@"DYYYHideNearbyCapsuleView"},
+        @{@"title":@"隐藏弹幕按钮", @"key":@"DYYYHideDanmuButton"},
+        @{@"title":@"隐藏取消静音", @"key":@"DYYYHideCancelMute"},
+        @{@"title":@"隐藏去汽水听", @"key":@"DYYYHideQuqishuiting"},
+        @{@"title":@"隐藏共创头像", @"key":@"DYYYHideGongChuang"},
+        @{@"title":@"隐藏热点提示", @"key":@"DYYYHideHotspot"},
+        @{@"title":@"隐藏推荐提示", @"key":@"DYYYHideRecommendTips"},
+        @{@"title":@"隐藏分享提示", @"key":@"DYYYHideShareContentView"},
+        @{@"title":@"隐藏作者声明", @"key":@"DYYYHideAntiAddictedNotice"},
+        @{@"title":@"隐藏底部相关", @"key":@"DYYYHideBottomRelated"},
+        @{@"title":@"隐藏视频锚点", @"key":@"DYYYHideFeedAnchorContainer"},
+        @{@"title":@"隐藏挑战贴纸", @"key":@"DYYYHideChallengeStickers"},
+        @{@"title":@"隐藏图文标签", @"key":@"DYYYHideEditTags"},
+        @{@"title":@"隐藏校园提示", @"key":@"DYYYHideTemplateTags"},
+        @{@"title":@"隐藏作者店铺", @"key":@"DYYYHideHisShop"},
+        @{@"title":@"隐藏顶栏横线", @"key":@"DYYYHideTopBarLine"},
+        @{@"title":@"隐藏视频合集", @"key":@"DYYYHideTemplateVideo"},
+        @{@"title":@"隐藏短剧合集", @"key":@"DYYYHideTemplatePlaylet"},
+        @{@"title":@"隐藏动图标签", @"key":@"DYYYHideLiveGIF"},
+        @{@"title":@"隐藏笔记标签", @"key":@"DYYYHideItemTag"},
+        @{@"title":@"隐藏底部话题", @"key":@"DYYYHideTemplateGroup"},
+        @{@"title":@"隐藏相机定位", @"key":@"DYYYHideCameraLocation"},
+        @{@"title":@"隐藏视频滑条", @"key":@"DYYYHideStoryProgressSlide"},
+        @{@"title":@"隐藏图片滑条", @"key":@"DYYYHideDotsIndicator"},
+        @{@"title":@"隐藏分享私信", @"key":@"DYYYHidePrivateMessages"},
+        @{@"title":@"隐藏昵称右侧", @"key":@"DYYYHideRightLabel"},
+        @{@"title":@"隐藏群聊商店", @"key":@"DYYYHideGroupShop"},
+        @{@"title":@"隐藏直播胶囊", @"key":@"DYYYHideLiveCapsuleView"},
+        @{@"title":@"隐藏关注顶端", @"key":@"DYYYHideLiveView"},
+        @{@"title":@"隐藏关注直播", @"key":@"DYYYHideConcernCapsuleView"},
+        @{@"title":@"隐藏同城顶端", @"key":@"DYYYHideMenuView"},
+        @{@"title":@"隐藏群直播中", @"key":@"DYYYHideGroupLiveIndicator"},
+        @{@"title":@"隐藏聊天底栏", @"key":@"DYYYHideGroupInputActionBar"},
+        @{@"title":@"隐藏添加朋友", @"key":@"DYYYHideButton"},
+        @{@"title":@"隐藏日常按钮", @"key":@"DYYYHideFamiliar"},
+        @{@"title":@"隐藏直播广场", @"key":@"DYYYHideLivePlayground"},
+        @{@"title":@"隐藏礼物展馆", @"key":@"DYYYHideGiftPavilion"},
+        @{@"title":@"隐藏顶栏红点", @"key":@"DYYYHideTopBarBadge"},
+        @{@"title":@"隐藏退出清屏", @"key":@"DYYYHideLiveRoomClear"},
+        @{@"title":@"隐藏投屏按钮", @"key":@"DYYYHideLiveRoomMirroring"},
+        @{@"title":@"隐藏直播发现", @"key":@"DYYYHideLiveDiscovery"},
+        @{@"title":@"隐藏直播点歌", @"key":@"DYYYHideKTVSongIndicator"},
+        @{@"title":@"隐藏流量提醒", @"key":@"DYYYHideCellularAlert"},
+        @{@"title":@"隐藏红包悬浮", @"key":@"DYYYHidePendantGroup"},
+        @{@"title":@"隐藏章节进度", @"key":@"DYYYHideChapterProgress"},
+        @{@"title":@"隐藏键盘AI", @"key":@"DYYYHideKeyboardAI"},
+        @{@"title":@"隐藏上次看到", @"key":@"DYYYHidePopover"}
+    ];
+    self.navigationItem.rightBarButtonItems = @[
+        [[UIBarButtonItem alloc] initWithTitle:@"一键取消" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectNone)],
+        [[UIBarButtonItem alloc] initWithTitle:@"一键全选" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectAll)]
+    ];
+}
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return _items.count; }
+- (BOOL)dy_valueForKey:(NSString *)key {
+    if ([key isEqualToString:@"DYYYHideMusicButton"]) key = kDYToolsHideMusicButtonKey;
+    else if ([key isEqualToString:@"DYYYHideLocation"]) key = kDYToolsHideLocationKey;
+    else if ([key isEqualToString:@"DYYYHideEnterLive"]) key = kDYToolsHideEnterLiveKey;
+    else if ([key isEqualToString:@"DYYYHideHotspot"]) key = kDYToolsRemoveHotspotKey;
+    else if ([key isEqualToString:@"DYYYHideQuqishuiting"]) key = kDYToolsRemoveShuiTingKey;
+    else if ([key isEqualToString:@"DYYYHideInteractionSearch"]) key = kDYToolsRemoveRelatedSearchKey;
+    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+}
+- (NSString *)dy_storageKey:(NSString *)key {
+    if ([key isEqualToString:@"DYYYHideMusicButton"]) return kDYToolsHideMusicButtonKey;
+    if ([key isEqualToString:@"DYYYHideLocation"]) return kDYToolsHideLocationKey;
+    if ([key isEqualToString:@"DYYYHideEnterLive"]) return kDYToolsHideEnterLiveKey;
+    if ([key isEqualToString:@"DYYYHideHotspot"]) return kDYToolsRemoveHotspotKey;
+    if ([key isEqualToString:@"DYYYHideQuqishuiting"]) return kDYToolsRemoveShuiTingKey;
+    if ([key isEqualToString:@"DYYYHideInteractionSearch"]) return kDYToolsRemoveRelatedSearchKey;
+    return key;
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuse = @"DYToolsTopBarCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuse];
+    NSDictionary *item = _items[indexPath.row];
+    cell.textLabel.text = item[@"title"];
+    cell.textLabel.font = [UIFont systemFontOfSize:16.0];
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    UISwitch *sw = [UISwitch new];
+    sw.onTintColor = UIColor.systemBlueColor;
+    sw.on = [self dy_valueForKey:item[@"key"]];
+    sw.tag = indexPath.row;
+    [sw addTarget:self action:@selector(dy_switch:) forControlEvents:UIControlEventValueChanged];
+    cell.accessoryView = sw;
+    return cell;
+}
+- (void)dy_switch:(UISwitch *)sender {
+    NSString *key = [self dy_storageKey:_items[sender.tag][@"key"]];
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:key];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+- (void)dy_setAll:(BOOL)value {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    for (NSDictionary *item in _items) [d setBool:value forKey:[self dy_storageKey:item[@"key"]]];
+    [d synchronize];
+    [self.tableView reloadData];
+}
+- (void)dy_selectAll { [self dy_setAll:YES]; }
+- (void)dy_selectNone { [self dy_setAll:NO]; }
+@end
 
 @interface DYToolsControlViewController : UIViewController
 @end
@@ -1448,8 +3094,8 @@ static UIViewController *DYToolsTopViewController(void) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
         case 0: return 1; // Fullscreen
-        case 1: return 4; // Video
-        case 2: return 3; // Live / interaction
+        case 1: return 6; // Video
+        case 2: return 2; // Live / interaction
         default: return 0;
     }
 }
@@ -1512,7 +3158,7 @@ static UIViewController *DYToolsTopViewController(void) {
     } else if (indexPath.section == 1) {
         switch (indexPath.row) {
             case 0:
-                cell.textLabel.text = @"移除汽水听";
+                cell.textLabel.text = @"移除去汽水听";
                 sw = _removeShuiTingSwitch;
                 break;
             case 1:
@@ -1524,8 +3170,16 @@ static UIViewController *DYToolsTopViewController(void) {
                 sw = _removeHotspotSwitch;
                 break;
             case 3:
-                cell.textLabel.text = @"隐藏音乐按钮";
+                cell.textLabel.text = @"移除音乐按钮";
                 sw = _hideMusicButtonSwitch;
+                break;
+            case 4:
+                cell.textLabel.text = @"移除视频位置";
+                sw = _hideLocationSwitch;
+                break;
+            case 5:
+                cell.textLabel.text = @"移除顶栏";
+                cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
                 break;
         }
     } else {
@@ -1537,10 +3191,6 @@ static UIViewController *DYToolsTopViewController(void) {
             case 1:
                 cell.textLabel.text = @"禁止自动进入直播间";
                 sw = _disableAutoEnterLiveSwitch;
-                break;
-            case 2:
-                cell.textLabel.text = @"去除视频位置栏";
-                sw = _hideLocationSwitch;
                 break;
         }
     }

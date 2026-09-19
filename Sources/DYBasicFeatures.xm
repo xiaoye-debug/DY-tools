@@ -124,3 +124,114 @@
 }
 
 %end
+
+
+#pragma mark - 提高视频画质
+
+@interface AWEVideoBSModel : NSObject
+- (NSNumber *)bitrate;
+- (id)playAddr;
+@end
+
+@interface AWEVideoModel : NSObject
+- (NSArray *)bitrateModels;
+- (id)playURL;
+@end
+
+%hook AWEVideoModel
+
+- (id)playURL {
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableVideoHighestQuality"]) {
+        return %orig;
+    }
+
+    NSArray *models = nil;
+    @try {
+        models = [self bitrateModels];
+    } @catch (__unused NSException *e) {
+        models = nil;
+    }
+
+    if (![models isKindOfClass:[NSArray class]] || models.count == 0) {
+        return %orig;
+    }
+
+    id highestModel = nil;
+    NSInteger highestBitrate = 0;
+
+    for (id model in models) {
+        if (![model isKindOfClass:NSClassFromString(@"AWEVideoBSModel")]) {
+            continue;
+        }
+
+        NSNumber *bitrate = nil;
+        @try {
+            bitrate = [model bitrate];
+        } @catch (__unused NSException *e) {
+            bitrate = nil;
+        }
+
+        NSInteger value = [bitrate respondsToSelector:@selector(integerValue)] ? [bitrate integerValue] : 0;
+        if (value > highestBitrate) {
+            highestBitrate = value;
+            highestModel = model;
+        }
+    }
+
+    if (highestModel) {
+        id playAddr = nil;
+        @try {
+            playAddr = [highestModel playAddr];
+        } @catch (__unused NSException *e) {
+            playAddr = nil;
+        }
+
+        if (playAddr) {
+            return playAddr;
+        }
+    }
+
+    return %orig;
+}
+
+- (NSArray *)bitrateModels {
+    NSArray *originalModels = %orig;
+
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableVideoHighestQuality"]) {
+        return originalModels;
+    }
+
+    if (![originalModels isKindOfClass:[NSArray class]] || originalModels.count == 0) {
+        return originalModels;
+    }
+
+    id highestModel = nil;
+    NSInteger highestBitrate = 0;
+
+    for (id model in originalModels) {
+        if (![model isKindOfClass:NSClassFromString(@"AWEVideoBSModel")]) {
+            continue;
+        }
+
+        NSNumber *bitrate = nil;
+        @try {
+            bitrate = [model bitrate];
+        } @catch (__unused NSException *e) {
+            bitrate = nil;
+        }
+
+        NSInteger value = [bitrate respondsToSelector:@selector(integerValue)] ? [bitrate integerValue] : 0;
+        if (value > highestBitrate) {
+            highestBitrate = value;
+            highestModel = model;
+        }
+    }
+
+    if (highestModel) {
+        return @[highestModel];
+    }
+
+    return originalModels;
+}
+
+%end

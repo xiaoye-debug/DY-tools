@@ -1520,6 +1520,24 @@ static void DYYYLiveDurationInstallFromInnerFeedCell(id cell) {
 
 
 
+#pragma mark - 禁止直播入口自动隐藏
+
+@interface AWEFeedLiveTabTopSelectionView : UIView
+- (void)setHideTimer:(id)timer;
+@end
+
+%hook AWEFeedLiveTabTopSelectionView
+
+- (void)setHideTimer:(id)timer {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableAutoHideLive"]) {
+        timer = nil;
+    }
+    %orig(timer);
+}
+
+%end
+
+
 #pragma mark - 显示开播时长
 
 %hook IESLiveAudienceViewController

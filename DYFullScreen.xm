@@ -3908,12 +3908,14 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     };
 
     _globalSearchController = [[UISearchController alloc] initWithSearchResultsController:_globalSearchResultsController];
+
+    // UISearchController 自己管理 searchBar 的内部 delegate。
+    // 不再覆盖 searchBar.delegate，否则在 iOS 26 / 抖音 40.x 中输入第一个字符后，
+    // UISearchController 的编辑状态可能被提前结束，表现为搜索框无法继续修改文字。
     _globalSearchController.searchResultsUpdater = self;
     _globalSearchController.delegate = self;
     _globalSearchController.obscuresBackgroundDuringPresentation = NO;
     _globalSearchController.hidesNavigationBarDuringPresentation = NO;
-    _globalSearchController.automaticallyShowsCancelButton = YES;
-    _globalSearchController.searchBar.delegate = self;
     _globalSearchController.searchBar.enablesReturnKeyAutomatically = NO;
     _globalSearchController.searchBar.placeholder = @"搜索插件功能";
     _globalSearchController.searchBar.autocapitalizationType = UITextAutocapitalizationTypeNone;
@@ -4188,28 +4190,20 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     }
 
     _globalSearchResultsController.items = _globalSearchResults;
-}
 
-- (BOOL)searchBarShouldBeginEditing:(UISearchBar *)searchBar {
-    return YES;
-}
-
-- (void)searchBarTextDidBeginEditing:(UISearchBar *)searchBar {
-    if (!_globalSearchController.active) {
-        _globalSearchController.active = YES;
-    }
-}
-
-- (void)searchBar:(UISearchBar *)searchBar textDidChange:(NSString *)searchText {
-    [self updateSearchResultsForSearchController:_globalSearchController];
+    // 强制刷新结果表，但不改变 searchBar 的文字、firstResponder 或 active 状态。
+    [_globalSearchResultsController.tableView reloadData];
 }
 
 - (void)willPresentSearchController:(UISearchController *)searchController {
+    // 让 UISearchController 自己维护 active / firstResponder 状态。
+    // 这里只保证搜索框可以正常交互，不主动切换 active。
     searchController.searchBar.userInteractionEnabled = YES;
 }
 
 - (void)didPresentSearchController:(UISearchController *)searchController {
     searchController.searchBar.userInteractionEnabled = YES;
+    [searchController.searchBar becomeFirstResponder];
 }
 
 - (void)willDismissSearchController:(UISearchController *)searchController {

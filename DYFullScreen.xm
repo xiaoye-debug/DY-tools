@@ -4009,7 +4009,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     if (!DYToolsBool(@"DYYYEnableNotificationTransparency")) return;
 
     UIView *container = nil;
-    for (UIView *v in self.subviews) {
+    for (UIView *v in [(UIView *)self subviews]) {
         if ([NSStringFromClass(v.class) containsString:@"AWEInnerNotificationContainerView"]) {
             container = v;
             break;

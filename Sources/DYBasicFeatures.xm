@@ -68,3 +68,45 @@
 }
 
 %end
+
+
+#pragma mark 后台播放
+
+@interface AWEAwemeStatusModel : NSObject
+- (void)setListenVideoStatus:(NSInteger)status;
+@end
+
+%hook AWEAwemeStatusModel
+
+- (void)setListenVideoStatus:(NSInteger)status {
+    if (status == 1 &&
+        [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableBackgroundListen"]) {
+        status = 2;
+    }
+    %orig(status);
+}
+
+%end
+
+#pragma mark 屏蔽直播 PCDN
+
+@interface HTSLiveStreamPcdnManager : NSObject
++ (void)start;
++ (void)configAndStartLiveIO;
+@end
+
+%hook HTSLiveStreamPcdnManager
+
++ (void)start {
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableLivePCDN"]) {
+        %orig;
+    }
+}
+
++ (void)configAndStartLiveIO {
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableLivePCDN"]) {
+        %orig;
+    }
+}
+
+%end

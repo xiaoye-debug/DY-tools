@@ -1528,13 +1528,48 @@ static BOOL DYToolsBool(NSString *key) {
 
 %hook AWEMarkView
 
+- (void)didMoveToWindow {
+    %orig;
+    if (!DYToolsBool(@"DYYYHideLocation")) return;
+
+    self.hidden = YES;
+    self.alpha = 0.0;
+    self.userInteractionEnabled = NO;
+
+    UILabel *label = nil;
+    @try { label = self.markLabel; } @catch (__unused NSException *e) {}
+    if (label) {
+        label.hidden = YES;
+        label.alpha = 0.0;
+    }
+}
+
 - (void)layoutSubviews {
     %orig;
 
+    if (!DYToolsBool(@"DYYYHideLocation")) return;
+
+    // DYYY 原始逻辑就是 AWEMarkView + layoutSubviews。
+    // 这里额外锁定 alpha/交互，并隐藏 markLabel，防止 40.x
+    // 在二次布局时把位置标签重新显示出来。
+    self.hidden = YES;
+    self.alpha = 0.0;
+    self.userInteractionEnabled = NO;
+
+    UILabel *label = nil;
+    @try { label = self.markLabel; } @catch (__unused NSException *e) {}
+    if (label) {
+        label.hidden = YES;
+        label.alpha = 0.0;
+    }
+}
+
+- (void)setHidden:(BOOL)hidden {
     if (DYToolsBool(@"DYYYHideLocation")) {
-        self.hidden = YES;
+        %orig(YES);
         return;
     }
+    %orig(hidden);
 }
 
 %end
@@ -3422,7 +3457,9 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"时间标签颜色",@"key":@"DYYYLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient",@"type":@"switch"},
         @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar",@"type":@"switch"},@{@"title":@"关注二次确认",@"key":@"DYYYFollowTips",@"type":@"switch"},
         @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips",@"type":@"switch"},@{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality",@"type":@"picker"},
-        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"}
+        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},
+        @{@"title":@"评论具体时间",@"key":@"DYYYCommentExactTime",@"type":@"switch"},
+        @{@"title":@"屏蔽灵动岛抖音播放信息",@"key":@"DYYYDisableFeedNowPlayingInfo",@"type":@"switch"}
         ]} 
     ];
 
@@ -3972,7 +4009,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
  add(@"移除音乐按钮",kDYToolsHideMusicButtonKey,@"视频设置",@"video");
  add(@"移除视频位置",@"DYYYHideLocation",@"视频设置",@"video");
  NSArray *b=@[
- @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"]];
+ @[@"视频背景颜色",@"DYYYVideoBGColor"],@[@"启用弹幕改色",@"DYYYEnableDanmuColor"],@[@"自定弹幕颜色",@"DYYYDanmuColor"],@[@"设置默认倍速",@"DYYYDefaultSpeed"],@[@"设置长按倍速",@"DYYYLongPressSpeed"],@[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture"],@[@"显示进度时长",@"DYYYShowScheduleDisplay"],@[@"进度时长样式",@"DYYYScheduleStyle"],@[@"进度纵轴位置",@"DYYYTimelineVerticalPosition"],@[@"进度标签颜色",@"DYYYProgressLabelColor"],@[@"隐藏视频进度",@"DYYYHideVideoProgress"],@[@"启用自动播放",@"DYYYEnableAutoPlay"],@[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck"],@[@"推荐过滤直播",@"DYYYSkipLive"],@[@"推荐过滤热点",@"DYYYSkipHotSpot"],@[@"推荐过滤低赞",@"DYYYFilterLowLikes"],@[@"推荐视频时限",@"DYYYFilterTimeLimit"],@[@"推荐过滤HDR",@"DYYYFilterFeedHDR"],@[@"启用首页净化",@"DYYYEnablePure"],@[@"启用首页全屏",@"DYYYEnableFullScreen"],@[@"启用屏蔽广告",@"DYYYNoAds"],@[@"屏蔽检测更新",@"DYYYNoUpdates"],@[@"去青少年弹窗",@"DYYYHideTeenMode"],@[@"评论区毛玻璃",@"DYYYEnableCommentBlur"],@[@"通知玻璃效果",@"DYYYEnableNotificationTransparency"],@[@"毛玻璃透明度",@"DYYYCommentBlurTransparent"],@[@"通知圆角半径",@"DYYYNotificationCornerRadius"],@[@"时间属地显示",@"DYYYEnableArea"],@[@"国外解析账号",@"DYYYGeonamesUsername"],@[@"时间标签颜色",@"DYYYLabelColor"],@[@"属地随机渐变",@"DYYYEnableRandomGradient"],@[@"隐藏系统顶栏",@"DYYYHideStatusbar"],@[@"关注二次确认",@"DYYYFollowTips"],@[@"收藏二次确认",@"DYYYCollectTips"],@[@"默认直播画质",@"DYYYLiveQuality"],@[@"提高视频画质",@"DYYYEnableVideoHighestQuality"],@[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN"],@[@"评论具体时间",@"DYYYCommentExactTime"],@[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo"]];
  for(NSArray*x in b)add(x[0],x[1],@"基本设置",@"basic");
  NSArray*t=@[@"推荐",@"DYYYHideHotContainer",@"朋友",@"DYYYHideFriend",@"关注",@"DYYYHideFollow",@"精选",@"DYYYHideMediumVideo",@"商城",@"DYYYHideMall",@"同城",@"DYYYHideNearby",@"团购",@"DYYYHideGroupon",@"直播",@"DYYYHideTabLive",@"热点",@"DYYYHidePadHot",@"经验",@"DYYYHideHangout",@"短剧",@"DYYYHidePlaylet",@"看剧",@"DYYYHideCinema",@"少儿",@"DYYYHideKidsV2",@"游戏",@"DYYYHideGame"];
  for(NSUInteger i=0;i+1<t.count;i+=2)add([NSString stringWithFormat:@"移除%@",t[i]],t[i+1],@"顶栏移除",@"top");
@@ -3981,6 +4018,193 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
  return a;
 }
 
+
+#pragma mark - DYYY Exact Comment Time + Dynamic Island Playback Info
+
+@interface AWEDateTimeFormatter : NSObject
++ (id)formattedDateForTimestamp:(double)timestamp;
+@end
+
+%hook AWEDateTimeFormatter
++ (id)formattedDateForTimestamp:(double)timestamp {
+    if (!DYToolsBool(@"DYYYCommentExactTime")) return %orig(timestamp);
+
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+    return [formatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:timestamp]];
+}
+%end
+
+%hook AWERLVirtualLabel
+- (void)setText:(NSString *)text {
+    if (!DYToolsBool(@"DYYYCommentExactTime") || text.length == 0) {
+        %orig(text);
+        return;
+    }
+
+    NSError *error = nil;
+    NSRegularExpression *regex =
+        [NSRegularExpression regularExpressionWithPattern:@"^(\\d{10,13})([\\s\\S]*)"
+                                                   options:0 error:&error];
+    NSTextCheckingResult *match =
+        [regex firstMatchInString:text options:0 range:NSMakeRange(0, text.length)];
+
+    if (!match) {
+        %orig(text);
+        return;
+    }
+
+    NSString *rawTs = [text substringWithRange:[match rangeAtIndex:1]];
+    NSString *suffix = [text substringWithRange:[match rangeAtIndex:2]];
+    long long ts = rawTs.longLongValue;
+    if (ts > 100000000000LL) ts /= 1000LL;
+
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+    NSString *dateText =
+        [formatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:ts]];
+
+    %orig([NSString stringWithFormat:@"%@%@", dateText, suffix]);
+}
+%end
+
+@interface MPNowPlayingInfoCenter : NSObject
+@property(nonatomic, copy) NSDictionary *nowPlayingInfo;
++ (instancetype)defaultCenter;
+@end
+
+static BOOL gDYToolsClearingNowPlaying = NO;
+static CFTimeInterval gDYToolsLastNowPlayingClear = 0.0;
+
+static void DYToolsClearNowPlayingInfo(void) {
+    if (!DYToolsBool(@"DYYYDisableFeedNowPlayingInfo") || gDYToolsClearingNowPlaying) return;
+
+    CFTimeInterval now = CFAbsoluteTimeGetCurrent();
+    if (now - gDYToolsLastNowPlayingClear < 0.25) return;
+    gDYToolsLastNowPlayingClear = now;
+
+    Class cls = NSClassFromString(@"MPNowPlayingInfoCenter");
+    if (!cls || ![cls respondsToSelector:@selector(defaultCenter)]) return;
+
+    id center = ((id (*)(Class, SEL))objc_msgSend)(cls, @selector(defaultCenter));
+    if (!center) return;
+
+    gDYToolsClearingNowPlaying = YES;
+    @try {
+        if ([center respondsToSelector:@selector(setNowPlayingInfo:)]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(center, @selector(setNowPlayingInfo:), nil);
+        }
+        SEL playbackState = NSSelectorFromString(@"setPlaybackState:");
+        if ([center respondsToSelector:playbackState]) {
+            ((void (*)(id, SEL, NSInteger))objc_msgSend)(center, playbackState, 0);
+        }
+    } @catch (__unused NSException *e) {
+    }
+    gDYToolsClearingNowPlaying = NO;
+}
+
+%hook AWEAwemeBackgroundPlayModule
+- (id)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return nil;
+    }
+    return %orig;
+}
+- (void)refreshNowPlayingInfoIfNeeded {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)updateNowPlayingInfoPlayback {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWEFeedBackgroundPlayManager
+- (id)nowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return nil;
+    }
+    return %orig;
+}
+- (void)setNowPlayingInfo:(id)info {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig(info);
+}
+- (void)resetNowPlayingInfo:(id)model {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig(model);
+}
+- (void)refreshNowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+- (void)updateNowPlayingInfoPlayback {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook AWENowPlayingInfoCenter
+- (void)becomePlayingPlayer:(id)player {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig(player);
+}
+- (void)setNowPlayingInfo:(id)info {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig(info);
+}
+- (void)refreshNowPlayingInfo {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo")) {
+        DYToolsClearNowPlayingInfo();
+        return;
+    }
+    %orig;
+}
+%end
+
+%hook MPNowPlayingInfoCenter
+- (void)setNowPlayingInfo:(NSDictionary *)info {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo") && !gDYToolsClearingNowPlaying) {
+        %orig(nil);
+        return;
+    }
+    %orig(info);
+}
+- (void)setPlaybackState:(NSInteger)state {
+    if (DYToolsBool(@"DYYYDisableFeedNowPlayingInfo") && !gDYToolsClearingNowPlaying) {
+        %orig(0);
+        return;
+    }
+    %orig(state);
+}
+%end
 
 #pragma mark - DYYY Basic Visual Effects
 

@@ -152,8 +152,9 @@ BOOL DYFSIsEnabled(void) {
         BOOL oldValue = [defaults boolForKey:@"DYToolsHideSearchSame"];
         [defaults setBool:oldValue forKey:kDYToolsHideMusicButtonKey];
     }
-    if ([defaults objectForKey:kDYToolsHideLocationKey] == nil) {
-        [defaults setBool:NO forKey:kDYToolsHideLocationKey];
+    if ([defaults objectForKey:@"DYYYHideLocation"] == nil) {
+        BOOL oldLocationValue = [defaults boolForKey:kDYToolsHideLocationKey];
+        [defaults setBool:oldLocationValue forKey:@"DYYYHideLocation"];
     }
     NSArray *dyTopBarRemovalKeys = @[
         @"DYYYHideHotContainer",
@@ -1530,7 +1531,7 @@ static BOOL DYToolsBool(NSString *key) {
 - (void)layoutSubviews {
     %orig;
 
-    if (DYToolsBool(kDYToolsHideLocationKey)) {
+    if (DYToolsBool(@"DYYYHideLocation")) {
         self.hidden = YES;
         return;
     }
@@ -3154,22 +3155,6 @@ static UIViewController *DYToolsTopViewController(void) {
     ] withRowAnimation:UITableViewRowAnimationNone];
 }
 
-- (void)dy_selectAllSwitch:(UISwitch *)sender {
-    /*
-     * 开启 = 一键全选
-     * 关闭 = 一键取消
-     */
-    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-
-    for (NSUInteger i = 1; i < _items.count; i++) {
-        NSString *key = _items[i][@"key"];
-        [defaults setBool:sender.isOn forKey:key];
-    }
-
-    [defaults synchronize];
-    [self.tableView reloadData];
-}
-
 @end
 
 @interface DYToolsBottomBarViewController : UITableViewController
@@ -3195,10 +3180,6 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
         @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},
         @{@"title":@"精简平板底栏", @"key":@"DYYYHidePadTabBarElements"}
-    ];
-    self.navigationItem.rightBarButtonItems = @[
-        [[UIBarButtonItem alloc] initWithTitle:@"一键取消" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectNone)],
-        [[UIBarButtonItem alloc] initWithTitle:@"一键全选" style:UIBarButtonItemStylePlain target:self action:@selector(dy_selectAll)]
     ];
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section { return _items.count; }
@@ -3256,7 +3237,7 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey},
         @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey},
         @{@"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey},
-        @{@"title":@"移除视频位置", @"key":kDYToolsHideLocationKey}
+        @{@"title":@"移除视频位置", @"key":@"DYYYHideLocation"}
     ];
 }
 
@@ -3326,6 +3307,502 @@ static UIViewController *DYToolsTopViewController(void) {
 
     [defaults synchronize];
     [self.tableView reloadData];
+}
+
+@end
+
+
+#pragma mark - DYYY Basic Settings
+
+static NSString *DYToolsBasicDisplayValue(NSString *key) {
+    id value = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    if (!value) return @"";
+    return [value isKindOfClass:NSString.class] ? value : [value description];
+}
+
+static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    if ([d objectForKey:key] == nil && value != nil) [d setObject:value forKey:key];
+}
+
+@interface DYToolsBasicSettingsViewController : UITableViewController
+@property(nonatomic,copy) NSString *focusKey;
+@end
+
+@implementation DYToolsBasicSettingsViewController {
+    NSArray<NSDictionary *> *_sections;
+}
+
+- (instancetype)init {
+    return [self initWithFocusKey:nil];
+}
+
+- (instancetype)initWithFocusKey:(NSString *)focusKey {
+    self = [super initWithStyle:UITableViewStyleInsetGrouped];
+    if (self) _focusKey = [focusKey copy];
+    return self;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"基本设置";
+    self.tableView.rowHeight = UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight = 52.0;
+    self.tableView.showsVerticalScrollIndicator = NO;
+
+    _sections = @[
+        @{
+            @"title":@"外观设置",
+            @"items":@[
+                @{@"title":@"启用弹幕改色",@"key":@"DYYYEnableDanmuColor",@"type":@"switch"},
+                @{@"title":@"自定弹幕颜色",@"key":@"DYYYDanmuColor",@"type":@"text",@"placeholder":@"十六进制，可填 random"},
+                @{@"title":@"旋转彩虹弹幕",@"key":@"DYYYDanmuRainbowRotating",@"type":@"switch"}
+            ]
+        },
+        @{
+            @"title":@"视频播放",
+            @"items":@[
+                @{@"title":@"视频背景颜色",@"key":@"DYYYVideoBGColor",@"type":@"text",@"placeholder":@"十六进制"},
+                @{@"title":@"显示进度时长",@"key":@"DYYYShowScheduleDisplay",@"type":@"switch"},
+                @{@"title":@"进度时长样式",@"key":@"DYYYScheduleStyle",@"type":@"picker"},
+                @{@"title":@"进度标签颜色",@"key":@"DYYYProgressLabelColor",@"type":@"text",@"placeholder":@"十六进制"},
+                @{@"title":@"进度纵轴位置",@"key":@"DYYYTimelineVerticalPosition",@"type":@"text",@"placeholder":@"-12.5"},
+                @{@"title":@"隐藏视频进度",@"key":@"DYYYHideVideoProgress",@"type":@"switch"},
+                @{@"title":@"启用自动播放",@"key":@"DYYYEnableAutoPlay",@"type":@"switch"},
+                @{@"title":@"启用后台播放",@"key":@"DYYYEnableBackgroundListen",@"type":@"switch"},
+                @{@"title":@"忽略投屏 VPN 检测",@"key":@"DYYYDisableCastVPNCheck",@"type":@"switch"},
+                @{@"title":@"设置默认倍速",@"key":@"DYYYDefaultSpeed",@"type":@"picker"},
+                @{@"title":@"设置长按倍速",@"key":@"DYYYLongPressSpeed",@"type":@"picker"},
+                @{@"title":@"上下控制倍速",@"key":@"DYYYEnableLongPressSpeedGesture",@"type":@"switch"},
+                @{@"title":@"时间属地显示",@"key":@"DYYYEnableArea",@"type":@"switch"},
+                @{@"title":@"国外解析账号",@"key":@"DYYYGeonamesUsername",@"type":@"text",@"placeholder":@"需填写 Geonames.org 账号"},
+                @{@"title":@"文案标签样式",@"key":@"DYYYLabelStyle",@"type":@"picker"},
+                @{@"title":@"属地标签颜色",@"key":@"DYYYLabelColor",@"type":@"text",@"placeholder":@"十六进制"},
+                @{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient",@"type":@"switch"}
+            ]
+        },
+        @{
+            @"title":@"杂项设置",
+            @"items":@[
+                @{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality",@"type":@"picker"},
+                @{@"title":@"直播真实人数",@"key":@"DYYYEnableLiveRealCount",@"type":@"switch"},
+                @{@"title":@"评论具体时间",@"key":@"DYYYCommentExactTime",@"type":@"switch"},
+                @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},
+                @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar",@"type":@"switch"},
+                @{@"title":@"启用首页净化",@"key":@"DYYYEnablePure",@"type":@"switch"},
+                @{@"title":@"启用首页全屏",@"key":@"DYYYEnableFullScreen",@"type":@"switch"}
+            ]
+        },
+        @{
+            @"title":@"过滤与屏蔽",
+            @"items":@[
+                @{@"title":@"推荐过滤直播",@"key":@"DYYYSkipLive",@"type":@"switch"},
+                @{@"title":@"全部过滤直播",@"key":@"DYYYSkipAllLive",@"type":@"switch"},
+                @{@"title":@"推荐过滤热点",@"key":@"DYYYSkipHotSpot",@"type":@"switch"},
+                @{@"title":@"推荐过滤图文",@"key":@"DYYYSkipPhoto",@"type":@"switch"},
+                @{@"title":@"推荐过滤文字",@"key":@"DYYYSkipPhotoText",@"type":@"switch"},
+                @{@"title":@"推荐过滤音乐",@"key":@"DYYYSkipMusic",@"type":@"switch"},
+                @{@"title":@"推荐过滤AI互动",@"key":@"DYYYSkipAIInteraction",@"type":@"switch"},
+                @{@"title":@"推荐过滤低赞",@"key":@"DYYYFilterLowLikes",@"type":@"text",@"placeholder":@"填0关闭"},
+                @{@"title":@"推荐过滤用户",@"key":@"DYYYFilterUsers",@"type":@"text",@"placeholder":@"多个用户用逗号分隔"},
+                @{@"title":@"推荐过滤文案",@"key":@"DYYYFilterKeywords",@"type":@"text",@"placeholder":@"多个关键词用逗号分隔"},
+                @{@"title":@"推荐过滤拍同款",@"key":@"DYYYFilterProp",@"type":@"text",@"placeholder":@"支持部分匹配，逗号分隔"},
+                @{@"title":@"推荐视频时限",@"key":@"DYYYFilterTimeLimit",@"type":@"text",@"placeholder":@"单位为天，填0关闭"},
+                @{@"title":@"推荐过滤HDR",@"key":@"DYYYFilterFeedHDR",@"type":@"switch"},
+                @{@"title":@"启用屏蔽广告",@"key":@"DYYYNoAds",@"type":@"switch"},
+                @{@"title":@"移除青少年弹窗",@"key":@"DYYYHideTeenMode",@"type":@"switch"},
+                @{@"title":@"屏蔽抖音检测更新",@"key":@"DYYYNoUpdates",@"type":@"switch"},
+                @{@"title":@"屏蔽直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"}
+            ]
+        },
+        @{
+            @"title":@"二次确认",
+            @"items":@[
+                @{@"title":@"关注二次确认",@"key":@"DYYYFollowTips",@"type":@"switch"},
+                @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips",@"type":@"switch"}
+            ]
+        }
+    ];
+
+    for (NSDictionary *section in _sections) {
+        for (NSDictionary *item in section[@"items"]) {
+            if ([item[@"type"] isEqualToString:@"switch"]) {
+                DYToolsBasicSetDefaultIfNeeded(item[@"key"], @NO);
+            }
+        }
+    }
+
+    if (_focusKey.length > 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self dy_scrollToFocusKey];
+        });
+    }
+}
+
+- (void)dy_scrollToFocusKey {
+    for (NSInteger s = 0; s < (NSInteger)_sections.count; s++) {
+        NSArray *items = _sections[s][@"items"];
+        for (NSInteger r = 0; r < (NSInteger)items.count; r++) {
+            if ([items[r][@"key"] isEqualToString:_focusKey]) {
+                [self.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:r inSection:s]
+                                      atScrollPosition:UITableViewScrollPositionMiddle
+                                              animated:NO];
+                return;
+            }
+        }
+    }
+}
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return _sections.count;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    return _sections[section][@"title"];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return [_sections[section][@"items"] count];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView
+         cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuse = @"DYToolsBasicSettingsCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
+                                      reuseIdentifier:reuse];
+    }
+
+    NSDictionary *item = _sections[indexPath.section][@"items"][indexPath.row];
+    cell.textLabel.text = item[@"title"];
+    cell.textLabel.font = [UIFont systemFontOfSize:16.0];
+    cell.textLabel.textColor = UIColor.labelColor;
+    cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
+    cell.detailTextLabel.numberOfLines = 1;
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
+    if ([item[@"type"] isEqualToString:@"switch"]) {
+        UISwitch *sw = [UISwitch new];
+        sw.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
+        sw.tag = indexPath.row;
+        [sw addTarget:self action:@selector(dy_basicSwitch:) forControlEvents:UIControlEventValueChanged];
+        cell.accessoryView = sw;
+        cell.accessoryType = UITableViewCellAccessoryNone;
+        cell.detailTextLabel.text = nil;
+    } else {
+        cell.accessoryView = nil;
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        NSString *value = DYToolsBasicDisplayValue(item[@"key"]);
+        if (value.length == 0) {
+            cell.detailTextLabel.text = item[@"placeholder"] ?: @"";
+        } else {
+            cell.detailTextLabel.text = value;
+        }
+    }
+    return cell;
+}
+
+- (NSDictionary *)dy_itemForSwitch:(UISwitch *)sender {
+    NSIndexPath *path = [self.tableView indexPathForCell:(UITableViewCell *)sender.superview];
+    if (!path) {
+        UIView *v = sender.superview;
+        while (v && ![v isKindOfClass:UITableViewCell.class]) v = v.superview;
+        if (v) path = [self.tableView indexPathForCell:(UITableViewCell *)v];
+    }
+    return path ? _sections[path.section][@"items"][path.row] : nil;
+}
+
+- (void)dy_basicSwitch:(UISwitch *)sender {
+    NSDictionary *item = [self dy_itemForSwitch:sender];
+    if (!item) return;
+    [[NSUserDefaults standardUserDefaults] setBool:sender.isOn forKey:item[@"key"]];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (NSArray<NSString *> *)dy_pickerOptionsForKey:(NSString *)key {
+    if ([key isEqualToString:@"DYYYDefaultSpeed"] || [key isEqualToString:@"DYYYLongPressSpeed"]) {
+        return @[@"0.75x",@"1.0x",@"1.25x",@"1.5x",@"2.0x",@"2.5x",@"3.0x"];
+    }
+    if ([key isEqualToString:@"DYYYScheduleStyle"]) {
+        return @[@"进度条两侧上下",@"进度条左侧剩余",@"进度条左侧完整",@"进度条右侧剩余",@"进度条右侧完整"];
+    }
+    if ([key isEqualToString:@"DYYYLabelStyle"]) {
+        return @[@"文案标签显示",@"文案标签隐藏",@"文案标签禁止跳转搜索"];
+    }
+    if ([key isEqualToString:@"DYYYLiveQuality"]) {
+        return @[@"蓝光帧彩",@"蓝光",@"超清",@"高清",@"标清",@"自动"];
+    }
+    return @[];
+}
+
+- (void)dy_showTextForItem:(NSDictionary *)item {
+    NSString *key = item[@"key"];
+    NSString *current = DYToolsBasicDisplayValue(key);
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:item[@"title"]
+                                                                   message:item[@"placeholder"]
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.text = current;
+        field.placeholder = item[@"placeholder"];
+        field.clearButtonMode = UITextFieldViewModeWhileEditing;
+    }];
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        NSString *value = [alert.textFields.firstObject.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        [[NSUserDefaults standardUserDefaults] setObject:value ?: @"" forKey:key];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        [self.tableView reloadData];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)dy_showPickerForItem:(NSDictionary *)item {
+    NSString *key = item[@"key"];
+    NSArray *options = [self dy_pickerOptionsForKey:key];
+    NSString *current = DYToolsBasicDisplayValue(key);
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:item[@"title"]
+                                                                   message:nil
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+    for (NSString *option in options) {
+        [alert addAction:[UIAlertAction actionWithTitle:option
+                                                  style:UIAlertActionStyleDefault
+                                                handler:^(UIAlertAction *action) {
+            [[NSUserDefaults standardUserDefaults] setObject:action.title forKey:key];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+            [self.tableView reloadData];
+        }]];
+    }
+    if (current.length > 0) {
+        // 当前值仅作为展示，不额外创建重复选项。
+    }
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    if (alert.popoverPresentationController) {
+        alert.popoverPresentationController.sourceView = self.view;
+        alert.popoverPresentationController.sourceRect = CGRectMake(self.view.bounds.size.width/2.0, self.view.bounds.size.height-40.0, 1.0, 1.0);
+    }
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSDictionary *item = _sections[indexPath.section][@"items"][indexPath.row];
+    if ([item[@"type"] isEqualToString:@"text"]) {
+        [self dy_showTextForItem:item];
+    } else if ([item[@"type"] isEqualToString:@"picker"]) {
+        [self dy_showPickerForItem:item];
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+}
+
+@end
+
+
+#pragma mark - Settings Search
+
+@interface DYToolsSettingsSearchViewController : UITableViewController <UISearchResultsUpdating>
+@end
+
+@implementation DYToolsSettingsSearchViewController {
+    UISearchController *_searchController;
+    NSArray<NSDictionary *> *_allEntries;
+    NSArray<NSDictionary *> *_results;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"搜索设置";
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+    self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    self.tableView.rowHeight = 52.0;
+
+    NSMutableArray *entries = [NSMutableArray array];
+
+    void (^add)(NSString *,NSString *,NSString *,NSString *,NSString *) =
+    ^(NSString *title, NSString *key, NSString *category, NSString *type, NSString *target) {
+        [entries addObject:@{
+            @"title":title ?: @"",
+            @"key":key ?: @"",
+            @"category":category ?: @"",
+            @"type":type ?: @"",
+            @"target":target ?: @""
+        }];
+    };
+
+    add(@"视频全屏",kDYFSFullScreenEnabledKey,@"全屏",@"main",@"");
+    add(@"移除去汽水听",kDYToolsRemoveShuiTingKey,@"视频设置",@"video",@"");
+    add(@"移除相关搜索",kDYToolsRemoveRelatedSearchKey,@"视频设置",@"video",@"");
+    add(@"移除热点栏",kDYToolsRemoveHotspotKey,@"视频设置",@"video",@"");
+    add(@"移除音乐按钮",kDYToolsHideMusicButtonKey,@"视频设置",@"video",@"");
+    add(@"移除视频位置",@"DYYYHideLocation",@"视频设置",@"video",@"");
+
+    NSArray *basicSections = @[
+        @[
+            @{@"title":@"启用弹幕改色",@"key":@"DYYYEnableDanmuColor"},
+            @{@"title":@"自定弹幕颜色",@"key":@"DYYYDanmuColor"},
+            @{@"title":@"旋转彩虹弹幕",@"key":@"DYYYDanmuRainbowRotating"}
+        ],
+        @[
+            @{@"title":@"视频背景颜色",@"key":@"DYYYVideoBGColor"},
+            @{@"title":@"显示进度时长",@"key":@"DYYYShowScheduleDisplay"},
+            @{@"title":@"进度时长样式",@"key":@"DYYYScheduleStyle"},
+            @{@"title":@"进度标签颜色",@"key":@"DYYYProgressLabelColor"},
+            @{@"title":@"进度纵轴位置",@"key":@"DYYYTimelineVerticalPosition"},
+            @{@"title":@"隐藏视频进度",@"key":@"DYYYHideVideoProgress"},
+            @{@"title":@"启用自动播放",@"key":@"DYYYEnableAutoPlay"},
+            @{@"title":@"启用后台播放",@"key":@"DYYYEnableBackgroundListen"},
+            @{@"title":@"忽略投屏 VPN 检测",@"key":@"DYYYDisableCastVPNCheck"},
+            @{@"title":@"设置默认倍速",@"key":@"DYYYDefaultSpeed"},
+            @{@"title":@"设置长按倍速",@"key":@"DYYYLongPressSpeed"},
+            @{@"title":@"上下控制倍速",@"key":@"DYYYEnableLongPressSpeedGesture"},
+            @{@"title":@"时间属地显示",@"key":@"DYYYEnableArea"},
+            @{@"title":@"国外解析账号",@"key":@"DYYYGeonamesUsername"},
+            @{@"title":@"文案标签样式",@"key":@"DYYYLabelStyle"},
+            @{@"title":@"属地标签颜色",@"key":@"DYYYLabelColor"},
+            @{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient"}
+        ],
+        @[
+            @{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality"},
+            @{@"title":@"直播真实人数",@"key":@"DYYYEnableLiveRealCount"},
+            @{@"title":@"评论具体时间",@"key":@"DYYYCommentExactTime"},
+            @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality"},
+            @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar"},
+            @{@"title":@"启用首页净化",@"key":@"DYYYEnablePure"},
+            @{@"title":@"启用首页全屏",@"key":@"DYYYEnableFullScreen"}
+        ],
+        @[
+            @{@"title":@"推荐过滤直播",@"key":@"DYYYSkipLive"},
+            @{@"title":@"全部过滤直播",@"key":@"DYYYSkipAllLive"},
+            @{@"title":@"推荐过滤热点",@"key":@"DYYYSkipHotSpot"},
+            @{@"title":@"推荐过滤图文",@"key":@"DYYYSkipPhoto"},
+            @{@"title":@"推荐过滤文字",@"key":@"DYYYSkipPhotoText"},
+            @{@"title":@"推荐过滤音乐",@"key":@"DYYYSkipMusic"},
+            @{@"title":@"推荐过滤AI互动",@"key":@"DYYYSkipAIInteraction"},
+            @{@"title":@"推荐过滤低赞",@"key":@"DYYYFilterLowLikes"},
+            @{@"title":@"推荐过滤用户",@"key":@"DYYYFilterUsers"},
+            @{@"title":@"推荐过滤文案",@"key":@"DYYYFilterKeywords"},
+            @{@"title":@"推荐过滤拍同款",@"key":@"DYYYFilterProp"},
+            @{@"title":@"推荐视频时限",@"key":@"DYYYFilterTimeLimit"},
+            @{@"title":@"推荐过滤HDR",@"key":@"DYYYFilterFeedHDR"},
+            @{@"title":@"启用屏蔽广告",@"key":@"DYYYNoAds"},
+            @{@"title":@"移除青少年弹窗",@"key":@"DYYYHideTeenMode"},
+            @{@"title":@"屏蔽抖音检测更新",@"key":@"DYYYNoUpdates"},
+            @{@"title":@"屏蔽直播PCDN功能",@"key":@"DYYYDisableLivePCDN"}
+        ],
+        @[
+            @{@"title":@"关注二次确认",@"key":@"DYYYFollowTips"},
+            @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips"}
+        ]
+    ];
+    for (NSArray *section in basicSections) {
+        for (NSDictionary *item in section) {
+            add(item[@"title"],item[@"key"],@"基本设置",@"basic",@"");
+        }
+    }
+
+    NSArray *topItems = @[
+        @{@"title":@"移除推荐",@"key":@"DYYYHideHotContainer"},
+        @{@"title":@"移除朋友",@"key":@"DYYYHideFriend"},
+        @{@"title":@"移除关注",@"key":@"DYYYHideFollow"},
+        @{@"title":@"移除精选",@"key":@"DYYYHideMediumVideo"},
+        @{@"title":@"移除商城",@"key":@"DYYYHideMall"},
+        @{@"title":@"移除同城",@"key":@"DYYYHideNearby"},
+        @{@"title":@"移除团购",@"key":@"DYYYHideGroupon"},
+        @{@"title":@"移除直播",@"key":@"DYYYHideTabLive"},
+        @{@"title":@"移除热点",@"key":@"DYYYHidePadHot"},
+        @{@"title":@"移除经验",@"key":@"DYYYHideHangout"},
+        @{@"title":@"移除短剧",@"key":@"DYYYHidePlaylet"},
+        @{@"title":@"移除看剧",@"key":@"DYYYHideCinema"},
+        @{@"title":@"移除少儿",@"key":@"DYYYHideKidsV2"},
+        @{@"title":@"移除游戏",@"key":@"DYYYHideGame"}
+    ];
+    for (NSDictionary *item in topItems) add(item[@"title"],item[@"key"],@"顶栏移除",@"top",@"");
+
+    NSArray *bottomItems = @[
+        @{@"title":@"隐藏底栏商城",@"key":@"DYYYHideShopButton"},
+        @{@"title":@"隐藏双列入口",@"key":@"DYYYHideDoubleColumnEntry"},
+        @{@"title":@"隐藏底栏消息",@"key":@"DYYYHideMessageButton"},
+        @{@"title":@"隐藏底栏朋友",@"key":@"DYYYHideFriendsButton"},
+        @{@"title":@"隐藏底栏我的",@"key":@"DYYYHideMyButton"},
+        @{@"title":@"隐藏底栏加号",@"key":@"DYYYHidePlusButton"},
+        @{@"title":@"隐藏底栏评论",@"key":@"DYYYHideComment"},
+        @{@"title":@"隐藏底栏红点",@"key":@"DYYYHideBottomDot"},
+        @{@"title":@"隐藏底栏背景",@"key":@"DYYYHideBottomBg"},
+        @{@"title":@"精简平板底栏",@"key":@"DYYYHidePadTabBarElements"}
+    ];
+    for (NSDictionary *item in bottomItems) add(item[@"title"],item[@"key"],@"移除底栏",@"bottom",@"");
+
+    add(@"去除进入直播间提示",kDYToolsHideEnterLiveKey,@"直播与互动",@"main",@"");
+    add(@"禁止自动进入直播间",kDYToolsDisableAutoEnterLiveKey,@"直播与互动",@"main","");
+
+    _allEntries = [entries copy];
+    _results = _allEntries;
+
+    _searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
+    _searchController.searchResultsUpdater = self;
+    _searchController.obscuresBackgroundDuringPresentation = NO;
+    _searchController.searchBar.placeholder = @"搜索功能";
+    self.navigationItem.searchController = _searchController;
+    self.navigationItem.hidesSearchBarWhenScrolling = NO;
+    self.definesPresentationContext = YES;
+}
+
+- (void)updateSearchResultsForSearchController:(UISearchController *)searchController {
+    NSString *q = [searchController.searchBar.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (q.length == 0) {
+        _results = @[];
+    } else {
+        NSPredicate *p = [NSPredicate predicateWithBlock:^BOOL(NSDictionary *obj, NSDictionary *bindings) {
+            NSString *title = obj[@"title"];
+            NSString *key = obj[@"key"];
+            NSString *category = obj[@"category"];
+            return [title localizedCaseInsensitiveContainsString:q] ||
+                   [key localizedCaseInsensitiveContainsString:q] ||
+                   [category localizedCaseInsensitiveContainsString:q];
+        }];
+        _results = [_allEntries filteredArrayUsingPredicate:p];
+    }
+    [self.tableView reloadData];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return _results.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *reuse = @"DYToolsSearchCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuse];
+    if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuse];
+    NSDictionary *item = _results[indexPath.row];
+    cell.textLabel.text = item[@"title"];
+    cell.detailTextLabel.text = item[@"category"];
+    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    cell.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSDictionary *item = _results[indexPath.row];
+    NSString *type = item[@"type"];
+    UIViewController *vc = nil;
+
+    if ([type isEqualToString:@"basic"]) {
+        vc = [[DYToolsBasicSettingsViewController alloc] initWithFocusKey:item[@"key"]];
+    } else if ([type isEqualToString:@"video"]) {
+        vc = [DYToolsVideoSettingsViewController new];
+    } else if ([type isEqualToString:@"top"]) {
+        vc = [DYToolsTopBarViewController new];
+    } else if ([type isEqualToString:@"bottom"]) {
+        vc = [DYToolsBottomBarViewController new];
+    } else if ([type isEqualToString:@"main"]) {
+        return;
+    }
+
+    if (vc) {
+        [_searchController setActive:NO animated:YES];
+        [self.navigationController pushViewController:vc animated:YES];
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 
 @end
@@ -3485,27 +3962,30 @@ static UIViewController *DYToolsTopViewController(void) {
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
-        case 0: return 1; // Fullscreen
-        case 1: return 3; // Video
-        case 2: return 2; // Live / interaction
+        case 0: return 2; // Settings
+        case 1: return 1; // Fullscreen
+        case 2: return 3; // Video
+        case 3: return 2; // Live / interaction
         default: return 0;
     }
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     switch (section) {
-        case 0: return @"全屏";
-        case 1: return @"视频界面";
-        case 2: return @"直播与互动";
+        case 0: return @"设置";
+        case 1: return @"全屏";
+        case 2: return @"视频界面";
+        case 3: return @"直播与互动";
         default: return nil;
     }
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     switch (section) {
-        case 0: return @"开启后，视频播放区域会使用全屏布局。";
-        case 1: return @"视频设置、顶栏和底栏功能分类管理。";
-        case 2: return @"用于处理直播入口及直播自动跳转行为。";
+        case 0: return @"搜索全部插件功能，或进入 DYYY 基本设置。";
+        case 1: return @"开启后，视频播放区域会使用全屏布局。";
+        case 2: return @"视频设置、顶栏和底栏功能分类管理。";
+        case 3: return @"用于处理直播入口及直播自动跳转行为。";
         default: return nil;
     }
 }
@@ -3545,9 +4025,17 @@ static UIViewController *DYToolsTopViewController(void) {
     UISwitch *sw = nil;
 
     if (indexPath.section == 0) {
+        if (indexPath.row == 0) {
+            cell.textLabel.text = @"搜索设置";
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        } else {
+            cell.textLabel.text = @"基本设置";
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        }
+    } else if (indexPath.section == 1) {
         cell.textLabel.text = @"视频全屏";
         sw = _fullscreenSwitch;
-    } else if (indexPath.section == 1) {
+    } else if (indexPath.section == 2) {
         switch (indexPath.row) {
             case 0:
                 cell.textLabel.text = @"视频设置";
@@ -3584,19 +4072,31 @@ static UIViewController *DYToolsTopViewController(void) {
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (indexPath.section == 1 && indexPath.row == 0) {
+    if (indexPath.section == 0 && indexPath.row == 0) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        DYToolsSettingsSearchViewController *vc = [DYToolsSettingsSearchViewController new];
+        [self.navigationController pushViewController:vc animated:YES];
+        return;
+    }
+    if (indexPath.section == 0 && indexPath.row == 1) {
+        [tableView deselectRowAtIndexPath:indexPath animated:YES];
+        DYToolsBasicSettingsViewController *vc = [DYToolsBasicSettingsViewController new];
+        [self.navigationController pushViewController:vc animated:YES];
+        return;
+    }
+    if (indexPath.section == 2 && indexPath.row == 0) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DYToolsVideoSettingsViewController *vc = [DYToolsVideoSettingsViewController new];
         [self.navigationController pushViewController:vc animated:YES];
         return;
     }
-    if (indexPath.section == 1 && indexPath.row == 1) {
+    if (indexPath.section == 2 && indexPath.row == 1) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DYToolsTopBarViewController *vc = [DYToolsTopBarViewController new];
         [self.navigationController pushViewController:vc animated:YES];
         return;
     }
-    if (indexPath.section == 1 && indexPath.row == 2) {
+    if (indexPath.section == 2 && indexPath.row == 2) {
         [tableView deselectRowAtIndexPath:indexPath animated:YES];
         DYToolsBottomBarViewController *vc = [DYToolsBottomBarViewController new];
         [self.navigationController pushViewController:vc animated:YES];

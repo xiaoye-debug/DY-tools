@@ -3981,6 +3981,69 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
  return a;
 }
 
+
+#pragma mark - DYYY Basic Visual Effects
+
+%hook AWEBaseListViewController
+- (void)viewDidLayoutSubviews {
+    %orig;
+    if (!DYToolsBool(@"DYYYEnableCommentBlur")) return;
+    if (![self isKindOfClass:NSClassFromString(@"AWECommentPanelContainerSwiftImpl.CommentContainerInnerViewController")]) return;
+
+    UIView *view = self.view;
+    if (!view) return;
+    NSInteger tag = 190721;
+    UIVisualEffectView *blur = [view viewWithTag:tag];
+    if (!blur) {
+        UIBlurEffect *effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+        blur = [[UIVisualEffectView alloc] initWithEffect:effect];
+        blur.tag = tag;
+        blur.userInteractionEnabled = NO;
+        blur.frame = view.bounds;
+        blur.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [view insertSubview:blur atIndex:0];
+    }
+    CGFloat alpha = [[NSUserDefaults standardUserDefaults] floatForKey:@"DYYYCommentBlurTransparent"];
+    if (alpha <= 0.0 || alpha > 1.0) alpha = 0.9;
+    blur.alpha = alpha;
+}
+%end
+
+%hook AWEInnerNotificationWindow
+- (void)layoutSubviews {
+    %orig;
+    if (!DYToolsBool(@"DYYYEnableNotificationTransparency")) return;
+
+    UIView *container = nil;
+    for (UIView *v in self.subviews) {
+        if ([NSStringFromClass(v.class) containsString:@"AWEInnerNotificationContainerView"]) {
+            container = v;
+            break;
+        }
+    }
+    if (!container) return;
+
+    NSInteger tag = 190722;
+    UIVisualEffectView *blur = [container viewWithTag:tag];
+    if (!blur) {
+        UIBlurEffect *effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+        blur = [[UIVisualEffectView alloc] initWithEffect:effect];
+        blur.tag = tag;
+        blur.userInteractionEnabled = NO;
+        blur.frame = container.bounds;
+        blur.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [container insertSubview:blur atIndex:0];
+    }
+
+    CGFloat radius = [[NSUserDefaults standardUserDefaults] floatForKey:@"DYYYNotificationCornerRadius"];
+    if (radius <= 0.0 || radius > 50.0) radius = 12.0;
+    container.layer.cornerRadius = radius;
+    container.layer.masksToBounds = YES;
+    blur.layer.cornerRadius = radius;
+    blur.layer.masksToBounds = YES;
+}
+%end
+
 static void DYToolsPresentControlPanel(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIViewController *presenter = DYToolsTopViewController();

@@ -3488,7 +3488,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"时间标签颜色",@"key":@"DYYYLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient",@"type":@"switch"},
         @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar",@"type":@"switch"},@{@"title":@"关注二次确认",@"key":@"DYYYFollowTips",@"type":@"switch"},
         @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips",@"type":@"switch"},@{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality",@"type":@"picker"},
-        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},@{@"title":@"显示开播时长",@"key":@"DYYYShowLiveDuration",@"type":@"switch"},@{@"title":@"禁用访客记录上传",@"key":@"DYYYDisableProfileVisitRecordUpload",@"type":@"switch"},@{@"title":@"禁用作品浏览记录上传",@"key":@"DYYYDisableFeedHistoryUpload",@"type":@"switch"},@{@"title":@"小程序跳广告",@"key":@"DYYYMiniProgramSkipAd",@"type":@"switch"},
+        @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},@{@"title":@"禁止直播入口自动隐藏",@"key":@"DYYYDisableAutoHideLive",@"type":@"switch"},@{@"title":@"显示开播时长",@"key":@"DYYYShowLiveDuration",@"type":@"switch"},@{@"title":@"禁用访客记录上传",@"key":@"DYYYDisableProfileVisitRecordUpload",@"type":@"switch"},@{@"title":@"禁用作品浏览记录上传",@"key":@"DYYYDisableFeedHistoryUpload",@"type":@"switch"},@{@"title":@"小程序跳广告",@"key":@"DYYYMiniProgramSkipAd",@"type":@"switch"},
         @{@"title":@"评论具体时间",@"key":@"DYYYCommentExactTime",@"type":@"switch"},
         @{@"title":@"屏蔽灵动岛抖音播放信息",@"key":@"DYYYDisableFeedNowPlayingInfo",@"type":@"switch"}
         ]} 
@@ -3690,6 +3690,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     return @[
         @{@"title":@"视频全屏", @"key":kDYFSFullScreenEnabledKey, @"category":@"全屏", @"type":@"main"},
         @{@"title":@"快捷倍速悬浮按钮", @"key":@"DYYYEnableFloatSpeedButton", @"category":@"基本设置", @"type":@"basic"},
+        @{@"title":@"禁止直播入口自动隐藏", @"key":@"DYYYDisableAutoHideLive", @"category":@"基本设置", @"type":@"basic"},
         @{@"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey, @"category":@"视频设置", @"type":@"video"},
         @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey, @"category":@"视频设置", @"type":@"video"},
         @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey, @"category":@"视频设置", @"type":@"video"},

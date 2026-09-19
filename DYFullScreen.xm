@@ -3358,17 +3358,7 @@ static BOOL DYFSIsAuthorWorkDetailContext(UIView *view) {
 %end
 
 %group DYFSAuthorSwiftCommentInput
-%hook CommentInputContainerView
-- (void)layoutSubviews {
-    %orig;
-    UIView *view = (UIView *)self;
-    if (DYFSIsEnabled() && DYFSIsAuthorWorkDetailContext(view)) {
-        view.hidden = YES;
-        view.alpha = 0.0;
-        view.userInteractionEnabled = NO;
-    }
-}
-%end
+
 %end
 
 %ctor {

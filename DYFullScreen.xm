@@ -3974,7 +3974,8 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 #pragma mark - DYYY Basic Feature Hooks
 
 
-// 广告 Hook 暂停迁移：避免 40.x Logos 预处理器在相邻 %hook 上生成嵌套函数。%hook AWETeenModeAlertView
+// 广告 Hook 暂停迁移：避免 40.x Logos 预处理器在相邻 %hook 上生成嵌套函数。
+%hook AWETeenModeAlertView
 - (BOOL)show { if (DYToolsBool(@"DYYYHideTeenMode")) return NO; return %orig; }
 %end
 %hook AWETeenModeSimpleAlertView

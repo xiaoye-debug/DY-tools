@@ -4080,7 +4080,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 
     // 选中结果后再退出搜索状态，避免搜索结果控制器与设置页同时呈现。
     [_globalSearchController.searchBar resignFirstResponder];
-    [_globalSearchController setActive:NO animated:NO];
+    _globalSearchController.active = NO;
 
     NSString *type = item[@"type"];
     NSString *key = item[@"key"];

@@ -704,6 +704,7 @@ static void DYToolsApplyCurrentCycleSpeed(id controller) {
     BOOL showRight = !leftRemaining && !leftComplete;
 
     CGFloat offset = DYToolsFeatureFloat(@"DYYYTimelineVerticalPosition", -12.5);
+    if (fabs(offset) < 0.001) offset = -12.5;
     CGRect frame = [self convertRect:self.bounds toView:parent];
     if (frame.size.width <= 1 || frame.size.height <= 1) return;
 
@@ -847,45 +848,76 @@ static void DYToolsApplyCurrentCycleSpeed(id controller) {
 @end
 
 %hook AWEPlayInteractionSpeedController
+static BOOL dyToolsHasChangedSpeed = NO;
+static CGFloat dyToolsCurrentLongPressSpeed = 0;
+static BOOL dyToolsGestureActive = NO;
+
 - (CGFloat)longPressFastSpeedValue {
     if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYLongPressSpeed"] != nil) {
-        return DYToolsCurrentLongPressSpeed();
+        CGFloat configured = DYToolsCurrentLongPressSpeed();
+        return configured > 0.0 ? configured : 2.0;
     }
     return %orig;
 }
+
 - (void)changeSpeed:(double)speed {
-    if (DYToolsFeatureBool(@"DYYYEnableLongPressSpeedGesture")) {
-        CGFloat configured = DYToolsCurrentLongPressSpeed();
-        if (configured > 0 && fabs(speed - 2.0) < 0.001) {
-            %orig(configured);
+    CGFloat configured = DYToolsCurrentLongPressSpeed();
+
+    if (dyToolsGestureActive && dyToolsCurrentLongPressSpeed > 0.0) {
+        %orig(dyToolsCurrentLongPressSpeed);
+        return;
+    }
+
+    if (fabs(speed - 2.0) < 0.001 && [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYLongPressSpeed"] != nil) {
+        if (!dyToolsHasChangedSpeed) {
+            if (configured > 0.0 && fabs(configured - 2.0) > 0.001) {
+                dyToolsHasChangedSpeed = YES;
+                %orig(configured);
+                return;
+            }
+        } else {
+            dyToolsHasChangedSpeed = NO;
+            %orig(1.0);
             return;
         }
     }
+
     %orig(speed);
 }
+
 - (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture {
     %orig;
+
     if (!DYToolsFeatureBool(@"DYYYEnableLongPressSpeedGesture")) return;
 
-    static CGFloat currentSpeed = 0;
-    static CGFloat lastY = 0;
+    CGPoint location = [gesture locationInView:gesture.view];
+
     if (gesture.state == UIGestureRecognizerStateBegan) {
-        lastY = [gesture locationInView:gesture.view].y;
-        currentSpeed = DYToolsCurrentLongPressSpeed();
-    } else if (gesture.state == UIGestureRecognizerStateChanged) {
-        CGFloat y = [gesture locationInView:gesture.view].y;
-        CGFloat delta = y - lastY;
-        if (fabs(delta) >= 10.0) {
-            CGFloat next = MAX(0.5, MIN(3.0, currentSpeed + (delta > 0 ? 0.25 : -0.25)));
-            if (fabs(next-currentSpeed) > 0.001) {
-                currentSpeed = next;
-                lastY = y;
-                [self changeSpeed:currentSpeed];
+        dyToolsCurrentLongPressSpeed = DYToolsCurrentLongPressSpeed();
+        if (dyToolsCurrentLongPressSpeed <= 0.0) dyToolsCurrentLongPressSpeed = 2.0;
+        dyToolsGestureActive = YES;
+        objc_setAssociatedObject(self, @selector(handleLongPressFastSpeed:),
+                                 @(location.y), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    } else if (gesture.state == UIGestureRecognizerStateChanged && dyToolsGestureActive) {
+        CGFloat lastY = [objc_getAssociatedObject(self, @selector(handleLongPressFastSpeed:)) doubleValue];
+        CGFloat deltaY = location.y - lastY;
+
+        if (fabs(deltaY) > 10.0) {
+            CGFloat next = dyToolsCurrentLongPressSpeed + (deltaY > 0 ? 0.25 : -0.25);
+            next = MAX(0.5, MIN(3.0, next));
+            if (fabs(next - dyToolsCurrentLongPressSpeed) > 0.001) {
+                dyToolsCurrentLongPressSpeed = next;
+                objc_setAssociatedObject(self, @selector(handleLongPressFastSpeed:),
+                                         @(location.y), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                [self changeSpeed:next];
             }
         }
-    } else if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled) {
-        currentSpeed = 0;
-        lastY = 0;
+    } else if (gesture.state == UIGestureRecognizerStateEnded ||
+               gesture.state == UIGestureRecognizerStateCancelled) {
+        dyToolsGestureActive = NO;
+        dyToolsCurrentLongPressSpeed = 0.0;
+        objc_setAssociatedObject(self, @selector(handleLongPressFastSpeed:),
+                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
 }
 %end
@@ -957,7 +989,6 @@ static void DYToolsApplyCurrentCycleSpeed(id controller) {
     // Keep Douyin's original contentView geometry.
     // Expanding this view to the stretched feed height pushes the title/caption down.
     %orig;
-    if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
     if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
     if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
 }
@@ -1506,7 +1537,7 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
 
 - (void)setIsAutoPlay:(BOOL)value {
     %orig(value);
-    if (DYToolsFeatureBool(@"DYYYDefaultSpeed") || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
         DYToolsApplyDefaultSpeedIfNeeded(self);
         if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
     }

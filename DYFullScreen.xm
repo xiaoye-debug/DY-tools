@@ -932,11 +932,10 @@ static BOOL dyToolsGestureActive = NO;
 %hook AWEAwemePlayVideoViewController
 - (void)setIsAutoPlay:(BOOL)value {
     %orig(value);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] == nil && !DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) return;
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] == nil) return;
     dispatch_async(dispatch_get_main_queue(), ^{
         DYToolsApplyDefaultSpeedIfNeeded(self);
         if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-        if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
     });
 }
 - (void)prepareForDisplay {
@@ -990,14 +989,12 @@ static BOOL dyToolsGestureActive = NO;
     // Expanding this view to the stretched feed height pushes the title/caption down.
     %orig;
     if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
-    if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
 }
 
 - (void)setIsAutoPlay:(BOOL)value {
     %orig(value);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) {
         DYToolsApplyDefaultSpeedIfNeeded(self);
-        if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
     }
 }
 %end
@@ -1537,9 +1534,8 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
 
 - (void)setIsAutoPlay:(BOOL)value {
     %orig(value);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) {
         DYToolsApplyDefaultSpeedIfNeeded(self);
-        if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
     }
 }
 
@@ -1547,7 +1543,6 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
     %orig;
     if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
     if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
-    if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
 }
 
 - (void)viewDidLayoutSubviews {
@@ -3620,7 +3615,6 @@ static UIViewController *DYToolsTopViewController(void) {
         @[@"设置长按倍速",@"DYYYLongPressSpeed",@"倍速 长按速度"],
         @[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture",@"倍速 上下控制"],
         @[@"自动恢复默认倍速",@"DYYYAutoRestoreSpeed",@"倍速 自动恢复"],
-        @[@"快捷倍速悬浮按钮",@"DYYYEnableFloatSpeedButton",@"倍速 悬浮按钮"],
         @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
         @[@"进度时长样式",@"DYYYScheduleStyle",@"进度 样式"],
         @[@"进度纵轴位置",@"DYYYTimelineVerticalPosition",@"进度 位置"],
@@ -4365,7 +4359,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @[@"设置长按倍速",@"DYYYLongPressSpeed",@"倍速 长按速度"],
         @[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture",@"倍速 上下控制"],
         @[@"自动恢复默认倍速",@"DYYYAutoRestoreSpeed",@"倍速 自动恢复"],
-        @[@"快捷倍速悬浮按钮",@"DYYYEnableFloatSpeedButton",@"倍速 悬浮按钮"],
         @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
         @[@"进度时长样式",@"DYYYScheduleStyle",@"进度 样式"],
         @[@"进度纵轴位置",@"DYYYTimelineVerticalPosition",@"进度 位置"],

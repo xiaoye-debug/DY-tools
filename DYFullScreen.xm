@@ -1024,6 +1024,77 @@ static void DYFSApplyLivePreviewLift(AWELivePreStream4LayerContainerView *contai
 }
 %end
 
+// 清理旧版本 DYYY 残留的悬浮倍速按钮。
+// 当前版本已经不再创建该按钮；这里额外兜底，避免旧 dylib / 旧实例在同一进程里继续显示。
+// 仅针对 DYYYSpeedSwitchButton / FloatingSpeedButton，不影响抖音原生进度条和播放控件。
+static void DYToolsRemoveLegacyFloatSpeedButtons(UIView *root) {
+    if (!root) return;
+
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+    while (queue.count > 0) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        NSString *accessibilityLabel = view.accessibilityLabel ?: @""; 
+        NSString *className = NSStringFromClass(view.class);
+
+        BOOL isLegacySpeedButton =
+            [accessibilityLabel isEqualToString:@"DYYYSpeedSwitchButton"] ||
+            [className containsString:@"FloatingSpeedButton"];
+
+        if (isLegacySpeedButton) {
+            view.hidden = YES;
+            view.alpha = 0.0;
+            view.userInteractionEnabled = NO;
+            [view removeFromSuperview];
+            continue;
+        }
+
+        [queue addObjectsFromArray:[view.subviews copy]];
+    }
+}
+
+static void DYToolsClearLegacyFloatSpeedSettings(void) {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+
+    // 旧版本悬浮倍速开关/状态全部作废，防止旧配置再次启用。
+    NSArray *legacyKeys = @[
+        @"DYYYEnableFloatSpeedButton",
+        @"DYYYFloatSpeedButtonEnabled",
+        @"DYYYSpeedButtonCenterXPercent",
+        @"DYYYSpeedButtonCenterYPercent",
+        @"DYYYSpeedButtonLocked",
+        @"DYYYCurrentSpeedIndex",
+        @"DYYYSpeedSettings"
+    ];
+
+    for (NSString *key in legacyKeys) {
+        [defaults removeObjectForKey:key];
+    }
+}
+
+static void DYToolsStartLegacyFloatSpeedCleanup(void) {
+    DYToolsClearLegacyFloatSpeedSettings();
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSTimer *timer = [NSTimer timerWithTimeInterval:0.5
+                                                  repeats:YES
+                                                    block:^(__unused NSTimer *timer) {
+            UIWindow *window = DYFSActiveWindow();
+            if (window) {
+                DYToolsRemoveLegacyFloatSpeedButtons(window);
+            }
+        }];
+
+        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+
+        UIWindow *window = DYFSActiveWindow();
+        if (window) {
+            DYToolsRemoveLegacyFloatSpeedButtons(window);
+        }
+    });
+}
+
 @interface AFDFastSpeedView : UIView @end
 %hook AFDFastSpeedView
 - (void)layoutSubviews {
@@ -5041,6 +5112,8 @@ static BOOL DYFSIsAuthorWorkDetailContext(UIView *view) {
         gDYFSStretchedTables = [NSHashTable weakObjectsHashTable];
     }
     DYFSRegisterRestore(DYFSRestoreFeedTables);
+
+    DYToolsStartLegacyFloatSpeedCleanup();
 
     NSLog(@"[DY-FullScreen] loaded, fullscreen=%@", DYFSIsEnabled() ? @"ON" : @"OFF");
 }

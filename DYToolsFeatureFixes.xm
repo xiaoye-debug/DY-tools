@@ -204,6 +204,134 @@ static void DYToolsScanVideoCollectionBars(void) {
     }
 }
 
+#pragma mark - 视频页去除剪映等软件推广弹窗/来源条
+
+static BOOL DYToolsRemoveSoftwarePopupEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYRemoveSoftwarePopups"];
+}
+
+static BOOL DYToolsSoftwareNameText(NSString *text) {
+    if (!text.length) return NO;
+
+    NSArray<NSString *> *names = @[
+        @"剪映", @"CapCut", @"快影", @"必剪", @"秒剪",
+        @"醒图", @"美图秀秀", @"轻颜", @"一甜", @"映剪",
+        @"万兴喵影", @"来画"
+    ];
+
+    for (NSString *name in names) {
+        if ([text localizedCaseInsensitiveContainsString:name]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static void DYToolsHideSoftwarePopupFromLabel(UILabel *label) {
+    if (!label || !DYToolsRemoveSoftwarePopupEnabled()) return;
+
+    NSString *text = [label.text stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (!DYToolsSoftwareNameText(text)) return;
+
+    // 先隐藏文字本身。
+    label.hidden = YES;
+    label.alpha = 0.0;
+    label.userInteractionEnabled = NO;
+
+    // 截图中的“剪映 | AI演唱...”是一个小型来源/推广容器。
+    // 向上找最多 3 层，只隐藏尺寸较小的容器，避免误伤整个视频页面。
+    UIView *candidate = label;
+    for (NSUInteger i = 0; i < 3; i++) {
+        UIView *parent = candidate.superview;
+        if (!parent) break;
+
+        CGRect rect = [parent convertRect:parent.bounds toView:label.window];
+        CGFloat screenW = CGRectGetWidth(label.window.bounds);
+        CGFloat screenH = CGRectGetHeight(label.window.bounds);
+
+        if (screenW > 0 && screenH > 0 &&
+            CGRectGetWidth(rect) <= screenW * 0.75 &&
+            CGRectGetHeight(rect) <= 100.0 &&
+            CGRectGetWidth(rect) >= 20.0 &&
+            CGRectGetHeight(rect) >= 12.0) {
+            candidate = parent;
+        } else {
+            break;
+        }
+    }
+
+    if (candidate != label) {
+        candidate.hidden = YES;
+        candidate.alpha = 0.0;
+        candidate.userInteractionEnabled = NO;
+    }
+}
+
+static void DYToolsScanSoftwarePopupsInView(UIView *root) {
+    if (!root || !root.window || !DYToolsRemoveSoftwarePopupEnabled()) return;
+
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+
+    while (queue.count) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        if ([view isKindOfClass:UILabel.class]) {
+            DYToolsHideSoftwarePopupFromLabel((UILabel *)view);
+        } else if ([view isKindOfClass:UIButton.class]) {
+            UIButton *button = (UIButton *)view;
+            NSString *title = [button titleForState:UIControlStateNormal];
+            if (DYToolsSoftwareNameText(title)) {
+                button.hidden = YES;
+                button.alpha = 0.0;
+                button.userInteractionEnabled = NO;
+            }
+        }
+
+        [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+static void DYToolsRestoreSoftwarePopups(void) {
+    // 关闭开关后不强制恢复所有 hidden 状态，避免把抖音自身原本隐藏的视图错误显示出来。
+    // 新页面/重建视图时会自然恢复。
+}
+
+static void DYToolsScanSoftwarePopups(void) {
+    if (!DYToolsRemoveSoftwarePopupEnabled()) return;
+
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState == UISceneActivationStateUnattached) continue;
+
+        for (UIWindow *window in windowScene.windows) {
+            if (window.hidden || window.alpha <= 0.01 || !window.rootViewController) continue;
+            DYToolsScanSoftwarePopupsInView(window);
+        }
+    }
+}
+
+static NSTimer *gDYToolsSoftwarePopupTimer = nil;
+
+static void DYToolsStartSoftwarePopupScanner(void) {
+    if (gDYToolsSoftwarePopupTimer) return;
+
+    gDYToolsSoftwarePopupTimer =
+        [NSTimer scheduledTimerWithTimeInterval:0.25
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+        if (DYToolsRemoveSoftwarePopupEnabled()) {
+            DYToolsScanSoftwarePopups();
+        }
+    }];
+
+    [[NSRunLoop mainRunLoop] addTimer:gDYToolsSoftwarePopupTimer
+                              forMode:NSRunLoopCommonModes];
+}
+
 #pragma mark - 实时彩色渐变文字：视频名字/文案/顶栏
 
 static const void *kDYToolsTextGradientLayerKey = &kDYToolsTextGradientLayerKey;
@@ -866,6 +994,7 @@ static void DYFixRunScan(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         DYToolsStartRealtimeTextGradientScanner();
         DYToolsStartVideoCollectionScanner();
+        DYToolsStartSoftwarePopupScanner();
 
         if (gDYFixTimer) return;
 

@@ -3843,6 +3843,8 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     UITableView *_dyTableView;
     UISearchController *_globalSearchController;
     DYToolsSearchResultsViewController *_globalSearchResultsController;
+    UISearchBar *_customSearchBar;
+    UITableView *_customSearchTableView;
     NSArray *_globalSearchEntries;
     NSArray *_globalSearchResults;
 }
@@ -3907,23 +3909,31 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         if (self) [self dy_openGlobalSearchItem:item];
     };
 
-    _globalSearchController = [[UISearchController alloc] initWithSearchResultsController:_globalSearchResultsController];
+    // 使用独立 UISearchBar，不再使用 UISearchController。
+    // 抖音 40.x / iOS 新版环境下 UISearchController 会干扰输入状态，
+    // 导致输入一个关键词后无法继续编辑，同时结果刷新不稳定。
+    _customSearchBar = [UISearchBar new];
+    _customSearchBar.translatesAutoresizingMaskIntoConstraints = NO;
+    _customSearchBar.placeholder = @"搜索插件功能";
+    _customSearchBar.delegate = self;
+    _customSearchBar.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    _customSearchBar.returnKeyType = UIReturnKeyDone;
+    _customSearchBar.enablesReturnKeyAutomatically = NO;
+    _customSearchBar.searchBarStyle = UISearchBarStyleMinimal;
+    [self.view addSubview:_customSearchBar];
 
-    // UISearchController 自己管理 searchBar 的内部 delegate。
-    // 不再覆盖 searchBar.delegate，否则在 iOS 26 / 抖音 40.x 中输入第一个字符后，
-    // UISearchController 的编辑状态可能被提前结束，表现为搜索框无法继续修改文字。
-    _globalSearchController.searchResultsUpdater = self;
-    _globalSearchController.delegate = self;
-    _globalSearchController.obscuresBackgroundDuringPresentation = NO;
-    _globalSearchController.hidesNavigationBarDuringPresentation = NO;
-    _globalSearchController.searchBar.enablesReturnKeyAutomatically = NO;
-    _globalSearchController.searchBar.delegate = self;
-    _globalSearchController.searchBar.placeholder = @"搜索插件功能";
-    _globalSearchController.searchBar.autocapitalizationType = UITextAutocapitalizationTypeNone;
-    _globalSearchController.searchBar.returnKeyType = UIReturnKeyDone;
-    self.navigationItem.searchController = _globalSearchController;
-    self.navigationItem.hidesSearchBarWhenScrolling = NO;
-    self.definesPresentationContext = YES;
+    _globalSearchResultsController = [DYToolsSearchResultsViewController new];
+    __weak typeof(self) weakSelf = self;
+    _globalSearchResultsController.selectionHandler = ^(NSDictionary *item) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (self) [self dy_openGlobalSearchItem:item];
+    };
+    [self addChildViewController:_globalSearchResultsController];
+    _customSearchTableView = _globalSearchResultsController.tableView;
+    _customSearchTableView.translatesAutoresizingMaskIntoConstraints = NO;
+    _customSearchTableView.hidden = YES;
+    [self.view addSubview:_customSearchTableView];
+    [_globalSearchResultsController didMoveToParentViewController:self];
 
     self.navigationItem.leftBarButtonItem =
         [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose
@@ -3945,10 +3955,20 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     _dyTableView = table;
 
     [NSLayoutConstraint activateConstraints:@[
-        [table.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [_customSearchBar.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [_customSearchBar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:8.0],
+        [_customSearchBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-8.0],
+        [_customSearchBar.heightAnchor constraintEqualToConstant:52.0],
+
+        [table.topAnchor constraintEqualToAnchor:_customSearchBar.bottomAnchor],
         [table.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
         [table.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [table.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
+        [table.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+
+        [_customSearchTableView.topAnchor constraintEqualToAnchor:_customSearchBar.bottomAnchor],
+        [_customSearchTableView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        [_customSearchTableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [_customSearchTableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor]
     ]];
 
     _fullscreenSwitch = [UISwitch new];
@@ -4163,67 +4183,50 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     return cell;
 }
 
-- (void)updateSearchResultsForSearchController:(UISearchController *)searchController {
-    NSString *query = [searchController.searchBar.text stringByTrimmingCharactersInSet:
-                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-
+- (void)dy_updateCustomSearchResults:(NSString *)text {
+    NSString *query = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (query.length == 0) {
         _globalSearchResults = @[];
-    } else {
-        NSString *lower = query.lowercaseString;
-        NSMutableArray *results = [NSMutableArray array];
-
-        for (NSDictionary *item in _globalSearchEntries) {
-            NSString *title = [item[@"title"] description] ?: @"";
-            NSString *key = [item[@"key"] description] ?: @"";
-            NSString *category = [item[@"category"] description] ?: @"";
-            NSString *keywords = [item[@"keywords"] description] ?: @"";
-
-            NSString *haystack = [NSString stringWithFormat:@"%@ %@ %@ %@",
-                                  title, key, category, keywords].lowercaseString;
-
-            if ([haystack containsString:lower]) {
-                [results addObject:item];
-            }
-        }
-
-        _globalSearchResults = [results copy];
+        _globalSearchResultsController.items = @[];
+        _customSearchTableView.hidden = YES;
+        _dyTableView.hidden = NO;
+        return;
     }
 
+    NSString *lower = query.lowercaseString;
+    NSMutableArray *results = [NSMutableArray array];
+    for (NSDictionary *item in _globalSearchEntries) {
+        NSString *title = [item[@"title"] description] ?: @"";
+        NSString *key = [item[@"key"] description] ?: @"";
+        NSString *category = [item[@"category"] description] ?: @"";
+        NSString *keywords = [item[@"keywords"] description] ?: @"";
+        NSString *haystack = [NSString stringWithFormat:@"%@ %@ %@ %@", title, key, category, keywords].lowercaseString;
+        if ([haystack rangeOfString:lower].location != NSNotFound) {
+            [results addObject:item];
+        }
+    }
+    _globalSearchResults = [results copy];
     _globalSearchResultsController.items = _globalSearchResults;
-
-    // 强制刷新结果表，但不改变 searchBar 的文字、firstResponder 或 active 状态。
-    [_globalSearchResultsController.tableView reloadData];
+    _customSearchTableView.hidden = NO;
+    _dyTableView.hidden = YES;
 }
 
-- (void)willPresentSearchController:(UISearchController *)searchController {
-    // 让 UISearchController 自己维护 active / firstResponder 状态。
-    // 这里只保证搜索框可以正常交互，不主动切换 active。
-    searchController.searchBar.userInteractionEnabled = YES;
+- (BOOL)searchBarShouldBeginEditing:(UISearchBar *)searchBar { return YES; }
+- (void)searchBar:(UISearchBar *)searchBar textDidChange:(NSString *)searchText {
+    [self dy_updateCustomSearchResults:searchText];
 }
-
-- (void)didPresentSearchController:(UISearchController *)searchController {
-    // 不主动抢 firstResponder；由系统处理搜索框编辑状态。
-    searchController.searchBar.userInteractionEnabled = YES;
-}
-
-- (void)willDismissSearchController:(UISearchController *)searchController {
-    // 只清空结果，不强制关闭/修改搜索框文字；关闭动作仍由系统处理。
-    _globalSearchResults = @[];
-    _globalSearchResultsController.items = @[];
-}
-
-- (void)didDismissSearchController:(UISearchController *)searchController {
-    _globalSearchResults = @[];
-    _globalSearchResultsController.items = @[];
+- (void)searchBarSearchButtonClicked:(UISearchBar *)searchBar {
+    [searchBar resignFirstResponder];
 }
 
 - (void)dy_openGlobalSearchItem:(NSDictionary *)item {
     if (!item) return;
 
     // 选中结果后再退出搜索状态，避免搜索结果控制器与设置页同时呈现。
-    [_globalSearchController.searchBar resignFirstResponder];
-    _globalSearchController.active = NO;
+    [_customSearchBar resignFirstResponder];
+    _customSearchBar.text = @"";
+    _customSearchTableView.hidden = YES;
+    _dyTableView.hidden = NO;
 
     NSString *type = item[@"type"];
     NSString *key = item[@"key"];

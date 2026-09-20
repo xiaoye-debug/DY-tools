@@ -98,6 +98,274 @@ static UIVisualEffectView *DYFixBlurView(UIView *container,
     return blur;
 }
 
+#pragma mark - 实时彩色渐变文字：视频名字/文案/顶栏
+
+static const void *kDYToolsTextGradientLayerKey = &kDYToolsTextGradientLayerKey;
+static const void *kDYToolsTextGradientMaskKey = &kDYToolsTextGradientMaskKey;
+
+static BOOL DYToolsRealtimeTextGradientEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableRealtimeTextGradient"];
+}
+
+static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
+    if (!label.text.length) return NO;
+
+    NSArray<NSString *> *topBarWords = @[
+        @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
+        @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
+        @"首页", @"附近"
+    ];
+
+    NSString *text = [label.text stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    for (NSString *word in topBarWords) {
+        if ([text isEqualToString:word]) return YES;
+    }
+
+    UIResponder *r = label;
+    for (NSUInteger i = 0; i < 10 && (r = [r nextResponder]); i++) {
+        NSString *name = NSStringFromClass(r.class);
+        if ([name containsString:@"TabBar"] ||
+            [name containsString:@"TopTab"] ||
+            [name containsString:@"TopBar"]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) {
+    if (!label.text.length || !root) return NO;
+
+    NSString *text = [label.text stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (!text.length) return NO;
+
+    // 排除纯数字、时间、进度等辅助文字。
+    NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
+    if ([text rangeOfCharacterFromSet:nonDigits].location == NSNotFound) return NO;
+    if ([text rangeOfString:@"IP属地"].location != NSNotFound) return NO;
+    if ([text rangeOfString:@"/"].location != NSNotFound && text.length < 16) return NO;
+
+    CGRect r = [label convertRect:label.bounds toView:root];
+    CGFloat w = CGRectGetWidth(root.bounds);
+    CGFloat h = CGRectGetHeight(root.bounds);
+
+    if (w <= 0 || h <= 0) return NO;
+
+    // 视频页名字、文案通常位于视频画面的左下区域。
+    if (CGRectGetMinX(r) <= w * 0.68 &&
+        CGRectGetMidY(r) >= h * 0.42) {
+        return YES;
+    }
+
+    NSString *className = NSStringFromClass(label.class);
+    if ([className containsString:@"Title"] ||
+        [className containsString:@"Caption"] ||
+        [className containsString:@"Desc"] ||
+        [className containsString:@"Author"] ||
+        [className containsString:@"UserName"] ||
+        [className containsString:@"Nick"]) {
+        return YES;
+    }
+
+    return NO;
+}
+
+static void DYToolsRemoveTextGradient(UILabel *label) {
+    if (!label) return;
+
+    CAGradientLayer *gradient =
+        objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey);
+    if ([gradient isKindOfClass:CAGradientLayer.class]) {
+        [gradient removeFromSuperlayer];
+    }
+
+    objc_setAssociatedObject(label, kDYToolsTextGradientLayerKey,
+                             nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(label, kDYToolsTextGradientMaskKey,
+                             nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    label.textColor = UIColor.whiteColor;
+}
+
+static void DYToolsApplyRealtimeTextGradient(UILabel *label) {
+    if (!label || !label.text.length) return;
+
+    CAGradientLayer *gradient =
+        objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey);
+    CATextLayer *mask =
+        objc_getAssociatedObject(label, kDYToolsTextGradientMaskKey);
+
+    if (![gradient isKindOfClass:CAGradientLayer.class] ||
+        ![mask isKindOfClass:CATextLayer.class]) {
+
+        gradient = [CAGradientLayer layer];
+        gradient.name = @"DYToolsRealtimeTextGradient";
+        gradient.startPoint = CGPointMake(0.0, 0.5);
+        gradient.endPoint = CGPointMake(1.0, 0.5);
+        gradient.colors = @[
+            (id)[UIColor colorWithRed:1.0 green:0.10 blue:0.55 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:0.55 blue:0.05 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.20 green:1.0 blue:0.75 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.15 green:0.45 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.75 green:0.15 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:0.10 blue:0.55 alpha:1.0].CGColor
+        ];
+        gradient.locations = @[@0.0, @0.20, @0.40, @0.60, @0.80, @1.0];
+        gradient.masksToBounds = YES;
+
+        mask = [CATextLayer layer];
+        mask.contentsScale = UIScreen.mainScreen.scale;
+        gradient.mask = mask;
+
+        [label.layer addSublayer:gradient];
+
+        objc_setAssociatedObject(label, kDYToolsTextGradientLayerKey,
+                                 gradient, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(label, kDYToolsTextGradientMaskKey,
+                                 mask, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+        CABasicAnimation *animation =
+            [CABasicAnimation animationWithKeyPath:@"locations"];
+        animation.fromValue = @[@(-0.8), @(-0.6), @(-0.4), @(-0.2), @0.0, @0.2];
+        animation.toValue = @[@0.8, @1.0, @1.2, @1.4, @1.6, @1.8];
+        animation.duration = 4.0;
+        animation.repeatCount = HUGE_VALF;
+        animation.timingFunction =
+            [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+        [gradient addAnimation:animation forKey:@"DYToolsRealtimeTextColorFlow"];
+    }
+
+    gradient.frame = label.bounds;
+
+    UIFont *font = label.font ?: [UIFont systemFontOfSize:12.0];
+    mask.frame = label.bounds;
+    mask.string = label.text;
+    mask.font = (__bridge CFTypeRef)font.fontName;
+    mask.fontSize = MAX(font.pointSize, 1.0);
+    mask.alignmentMode =
+        (label.textAlignment == NSTextAlignmentCenter)
+        ? kCAAlignmentCenter
+        : (label.textAlignment == NSTextAlignmentRight
+           ? kCAAlignmentRight
+           : kCAAlignmentLeft);
+    mask.truncationMode = kCATruncationEnd;
+    mask.contentsScale = UIScreen.mainScreen.scale;
+
+    label.textColor = UIColor.clearColor;
+    label.layer.masksToBounds = NO;
+}
+
+static void DYToolsScanGradientLabelsInView(UIView *root, BOOL topBarOnly) {
+    if (!root || !root.window) return;
+
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+
+    while (queue.count) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        if ([view isKindOfClass:UILabel.class]) {
+            UILabel *label = (UILabel *)view;
+
+            BOOL shouldApply = topBarOnly
+                ? DYToolsGradientTextIsTopBar(label)
+                : DYToolsGradientTextLooksLikeVideoText(label, root);
+
+            if (shouldApply) {
+                DYToolsApplyRealtimeTextGradient(label);
+            }
+        }
+
+        [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+static void DYToolsScanRealtimeGradientPages(void) {
+    if (!DYToolsRealtimeTextGradientEnabled()) return;
+
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState == UISceneActivationStateUnattached) continue;
+
+        for (UIWindow *window in windowScene.windows) {
+            if (window.hidden || window.alpha <= 0.01 || !window.rootViewController) continue;
+
+            DYToolsScanGradientLabelsInView(window, YES);
+
+            UIViewController *vc = window.rootViewController;
+            NSMutableArray<UIViewController *> *controllers =
+                [NSMutableArray arrayWithObject:vc];
+
+            while (controllers.count) {
+                UIViewController *current = controllers.firstObject;
+                [controllers removeObjectAtIndex:0];
+
+                NSString *name = NSStringFromClass(current.class);
+                if ([name containsString:@"AWEPlayInteraction"] ||
+                    [name containsString:@"AwemeDetail"] ||
+                    [name containsString:@"PlayerViewController"]) {
+                    DYToolsScanGradientLabelsInView(current.view, NO);
+                }
+
+                [controllers addObjectsFromArray:current.childViewControllers];
+
+                if (current.presentedViewController) {
+                    [controllers addObject:current.presentedViewController];
+                }
+            }
+        }
+    }
+}
+
+static void DYToolsRemoveAllRealtimeGradients(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *window in windowScene.windows) {
+            NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
+
+            while (queue.count) {
+                UIView *view = queue.firstObject;
+                [queue removeObjectAtIndex:0];
+
+                if ([view isKindOfClass:UILabel.class]) {
+                    UILabel *label = (UILabel *)view;
+                    if (objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey)) {
+                        DYToolsRemoveTextGradient(label);
+                    }
+                }
+
+                [queue addObjectsFromArray:view.subviews];
+            }
+        }
+    }
+}
+
+static NSTimer *gDYToolsRealtimeTextGradientTimer = nil;
+
+static void DYToolsStartRealtimeTextGradientScanner(void) {
+    if (gDYToolsRealtimeTextGradientTimer) return;
+
+    gDYToolsRealtimeTextGradientTimer =
+        [NSTimer scheduledTimerWithTimeInterval:0.35
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+        if (DYToolsRealtimeTextGradientEnabled()) {
+            DYToolsScanRealtimeGradientPages();
+        } else {
+            DYToolsRemoveAllRealtimeGradients();
+        }
+    }];
+
+    [[NSRunLoop mainRunLoop] addTimer:gDYToolsRealtimeTextGradientTimer
+                              forMode:NSRunLoopCommonModes];
+}
+
 #pragma mark - 1. 隐藏系统顶栏
 
 %hook AWEFeedRootViewController

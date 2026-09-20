@@ -2197,8 +2197,8 @@ static BOOL DYToolsShouldFilterRecommendAweme(id model,
     id likesRaw = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYFilterLowLikes"];
     NSNumber *daysNumber = DYToolsNumberValue(daysRaw);
     NSNumber *likesNumber = DYToolsNumberValue(likesRaw);
-    daysThreshold = daysNumber ? daysNumber.integerValue : 0;
-    minLikesThreshold = likesNumber ? likesNumber.integerValue : 0;
+    NSInteger daysThreshold = daysNumber ? daysNumber.integerValue : 0;
+    NSInteger minLikesThreshold = likesNumber ? likesNumber.integerValue : 0;
 
     if (!skipLive && !skipHotSpot && daysThreshold <= 0 &&
         minLikesThreshold <= 0 && !DYToolsFeatureBool(@"DYYYFilterFeedHDR")) {

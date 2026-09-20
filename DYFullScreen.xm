@@ -1039,7 +1039,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 
 - (void)setIsAutoPlay:(BOOL)value {
     %orig(value);
-    if (DYToolsFeatureBool(@"DYYYDefaultSpeed") || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
         DYToolsApplyDefaultSpeedIfNeeded(self);
         if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
     }
@@ -1589,7 +1589,7 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
 - (void)prepareForDisplay {
     %orig;
     if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-    if (DYToolsFeatureBool(@"DYYYDefaultSpeed")) DYToolsApplyDefaultSpeedIfNeeded(self);
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
     if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
 }
 

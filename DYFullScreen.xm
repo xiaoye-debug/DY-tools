@@ -816,21 +816,101 @@ static NSString *DYToolsIPFallbackFromModel(id model) {
     return value.length ? value : nil;
 }
 
+static const void *kDYToolsIPGradientLayerKey = &kDYToolsIPGradientLayerKey;
+static const void *kDYToolsIPGradientMaskKey = &kDYToolsIPGradientMaskKey;
+
+static void DYToolsUpdateIPGradient(UILabel *label) {
+    if (!label) return;
+
+    NSString *text = label.text ?: @"";
+    if (text.length == 0) return;
+
+    CAGradientLayer *gradient = objc_getAssociatedObject(label, kDYToolsIPGradientLayerKey);
+    CATextLayer *mask = objc_getAssociatedObject(label, kDYToolsIPGradientMaskKey);
+
+    if (![gradient isKindOfClass:CAGradientLayer.class]) {
+        gradient = [CAGradientLayer layer];
+        gradient.name = @"DYToolsIPRealtimeGradient";
+        gradient.startPoint = CGPointMake(0.0, 0.5);
+        gradient.endPoint = CGPointMake(1.0, 0.5);
+        gradient.colors = @[
+            (id)[UIColor colorWithRed:1.0 green:0.20 blue:0.55 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:0.65 blue:0.10 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.20 green:0.95 blue:0.85 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.25 green:0.45 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.75 green:0.25 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:0.20 blue:0.55 alpha:1.0].CGColor
+        ];
+        gradient.locations = @[@0.0, @0.20, @0.40, @0.60, @0.80, @1.0];
+        gradient.masksToBounds = YES;
+
+        mask = [CATextLayer layer];
+        mask.contentsScale = UIScreen.mainScreen.scale;
+        gradient.mask = mask;
+
+        [label.layer addSublayer:gradient];
+
+        objc_setAssociatedObject(label, kDYToolsIPGradientLayerKey,
+                                 gradient, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(label, kDYToolsIPGradientMaskKey,
+                                 mask, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+        CABasicAnimation *animation =
+            [CABasicAnimation animationWithKeyPath:@"locations"];
+        animation.fromValue = @[@(-0.8), @(-0.6), @(-0.4), @(-0.2), @0.0, @0.2];
+        animation.toValue = @[@0.8, @1.0, @1.2, @1.4, @1.6, @1.8];
+        animation.duration = 4.0;
+        animation.repeatCount = HUGE_VALF;
+        animation.autoreverses = NO;
+        animation.timingFunction =
+            [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+        [gradient addAnimation:animation forKey:@"DYToolsIPRealtimeColorFlow"];
+    }
+
+    gradient.frame = label.bounds;
+
+    UIFont *font = label.font ?: [UIFont systemFontOfSize:label.bounds.size.height > 0 ? label.bounds.size.height * 0.72 : 12.0];
+    CGFloat fontSize = MAX(font.pointSize, 1.0);
+
+    mask.frame = label.bounds;
+    mask.string = text;
+    mask.font = (__bridge CFTypeRef)font.fontName;
+    mask.fontSize = fontSize;
+    mask.alignmentMode =
+        (label.textAlignment == NSTextAlignmentCenter)
+        ? kCAAlignmentCenter
+        : (label.textAlignment == NSTextAlignmentRight
+           ? kCAAlignmentRight
+           : kCAAlignmentLeft);
+    mask.truncationMode = kCATruncationEnd;
+    mask.contentsScale = UIScreen.mainScreen.scale;
+
+    // 渐变只负责绘制文字，原 UILabel 的文字改为透明，避免出现两层文字。
+    label.textColor = UIColor.clearColor;
+    label.layer.masksToBounds = NO;
+}
+
 static void DYToolsApplyIPLabelStyle(UILabel *label) {
     if (!label) return;
 
-    NSString *hex = [[NSUserDefaults standardUserDefaults]
-                     stringForKey:@"DYYYLabelColor"];
-
     if (DYToolsFeatureBool(@"DYYYEnableRandomGradient")) {
-        // 这里先使用随机单色作为兼容实现；不影响属地文本本身。
-        CGFloat r = (CGFloat)arc4random_uniform(256) / 255.0;
-        CGFloat g = (CGFloat)arc4random_uniform(256) / 255.0;
-        CGFloat b = (CGFloat)arc4random_uniform(256) / 255.0;
-        label.textColor = [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+        // 原来的“随机单色”改为整段 IP 属地文字的实时彩色渐变。
+        DYToolsUpdateIPGradient(label);
         return;
     }
 
+    CAGradientLayer *gradient =
+        objc_getAssociatedObject(label, kDYToolsIPGradientLayerKey);
+    if ([gradient isKindOfClass:CAGradientLayer.class]) {
+        [gradient removeFromSuperlayer];
+    }
+    objc_setAssociatedObject(label, kDYToolsIPGradientLayerKey,
+                             nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(label, kDYToolsIPGradientMaskKey,
+                             nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    NSString *hex = [[NSUserDefaults standardUserDefaults]
+                     stringForKey:@"DYYYLabelColor"];
     UIColor *color = DYToolsColorFromHex(hex);
     if (color) label.textColor = color;
 }

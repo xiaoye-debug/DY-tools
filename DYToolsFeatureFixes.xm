@@ -10,6 +10,9 @@
 - (NSArray *)dy_buildGlobalSearchEntries;
 @end
 
+@interface AWEFeedRootViewController : UIViewController
+@end
+
 #pragma mark - DY-tools 40.4.0 feature fixes
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>

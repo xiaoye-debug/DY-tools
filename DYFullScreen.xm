@@ -554,6 +554,15 @@ static float DYToolsCurrentLongPressSpeed(void) {
 }
 
 static NSArray<NSNumber *> *DYToolsSpeedOptions(void) {
+    NSString *config = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYSpeedSettings"];
+    if (config.length > 0) {
+        NSMutableArray<NSNumber *> *result = [NSMutableArray array];
+        for (NSString *part in [config componentsSeparatedByString:@","]) {
+            CGFloat value = part.floatValue;
+            if (value > 0.0) [result addObject:@(value)];
+        }
+        if (result.count > 0) return result;
+    }
     return @[@1.0, @1.25, @1.5, @2.0];
 }
 
@@ -626,6 +635,7 @@ static void DYToolsApplyCurrentCycleSpeed(id controller) {
 @end
 
 static char kDYToolsSpeedButtonKey;
+static char kDYToolsSpeedWindowButtonKey;
 
 static NSString *DYToolsSpeedButtonTitle(float speed) {
     NSString *s;
@@ -640,34 +650,47 @@ static NSString *DYToolsSpeedButtonTitle(float speed) {
 }
 
 static void DYToolsInstallSpeedButton(id controller) {
-    if (!controller || !DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
-        UIButton *old = objc_getAssociatedObject(controller, &kDYToolsSpeedButtonKey);
-        old.hidden = YES;
-        return;
-    }
+    if (!controller) return;
 
     UIWindow *window = DYFSActiveWindow();
     if (!window) return;
 
-    DYToolsSpeedButton *button = objc_getAssociatedObject(controller, &kDYToolsSpeedButtonKey);
+    DYToolsSpeedButton *button = objc_getAssociatedObject(window, &kDYToolsSpeedWindowButtonKey);
+
+    if (!DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+        if (button) button.hidden = YES;
+        return;
+    }
+
     if (!button) {
         CGFloat size = 34.0;
         button = [[DYToolsSpeedButton alloc] initWithFrame:CGRectMake(0, 0, size, size)];
-        button.dyController = controller;
-        [button addTarget:controller action:@selector(dy_tools_speedButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
-        objc_setAssociatedObject(controller, &kDYToolsSpeedButtonKey, button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        button.center = CGPointMake(window.bounds.size.width - 28.0, window.bounds.size.height * 0.55);
+        [window addSubview:button];
+        objc_setAssociatedObject(window, &kDYToolsSpeedWindowButtonKey, button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    button.dyController = controller;
+
+    // 一个窗口只保留一个悬浮按钮，避免多个 AWEPlayInteractionViewController
+    // 在反复 layout 时各自创建一个按钮。
+    for (UIView *sub in [window.subviews copy]) {
+        if (sub == button) continue;
+        if ([sub isKindOfClass:[DYToolsSpeedButton class]] ||
+            [sub.accessibilityLabel isEqualToString:@"DYYYSpeedSwitchButton"] ||
+            [sub.accessibilityLabel isEqualToString:@"DYToolsSpeedButton"]) {
+            [sub removeFromSuperview];
+        }
     }
 
     if (button.superview != window) {
         [button removeFromSuperview];
-        button.center = CGPointMake(window.bounds.size.width - 28.0, window.bounds.size.height * 0.55);
         [window addSubview:button];
     }
 
     button.hidden = NO;
     [button setTitle:DYToolsSpeedButtonTitle(DYToolsCurrentCycleSpeed()) forState:UIControlStateNormal];
 }
-
 #pragma mark - Progress time / position / color
 
 @interface AWEFeedProgressSlider : UIView
@@ -1007,23 +1030,39 @@ static void DYToolsInstallSpeedButton(id controller) {
 
     NSInteger nextIndex = DYToolsCurrentSpeedIndex() + 1;
     DYToolsSetCycleSpeedIndex(nextIndex);
+
     float speed = DYToolsCurrentCycleSpeed();
     [sender setTitle:DYToolsSpeedButtonTitle(speed) forState:UIControlStateNormal];
-
-    DYToolsApplyPlaybackRateToController(self, speed);
 
     UIWindow *window = DYFSActiveWindow();
     UIViewController *root = window.rootViewController;
     while (root.presentedViewController) root = root.presentedViewController;
 
+    BOOL applied = NO;
     if (root) {
         NSMutableArray *stack = [NSMutableArray arrayWithObject:root];
         while (stack.count) {
             UIViewController *vc = stack.lastObject;
             [stack removeLastObject];
-            DYToolsApplyPlaybackRateToController(vc, speed);
+
+            if ([vc isKindOfClass:NSClassFromString(@"AWEAwemePlayVideoViewController")]) {
+                [(AWEAwemePlayVideoViewController *)vc setVideoControllerPlaybackRate:speed];
+                applied = YES;
+            } else if ([vc isKindOfClass:NSClassFromString(@"AWEDPlayerFeedPlayerViewController")]) {
+                [(AWEDPlayerFeedPlayerViewController *)vc setVideoControllerPlaybackRate:speed];
+                applied = YES;
+            } else if ([vc isKindOfClass:NSClassFromString(@"AWEDPlayerViewController_Merge")]) {
+                [(AWEDPlayerViewController_Merge *)vc setVideoControllerPlaybackRate:speed];
+                applied = YES;
+            }
+
             [stack addObjectsFromArray:vc.childViewControllers];
         }
+    }
+
+    // 某些 40.x 页面把实际播放控制器挂在 interaction controller 本身。
+    if (!applied) {
+        DYToolsApplyPlaybackRateToController(self, speed);
     }
 }
 
@@ -1031,6 +1070,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 
 @interface AWEDPlayerFeedPlayerViewController : UIViewController
 @property(nonatomic,strong) UIView *contentView;
+- (void)setVideoControllerPlaybackRate:(float)rate;
 @end
 
 %hook AWEDPlayerFeedPlayerViewController
@@ -1053,6 +1093,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 %end
 
 @interface AWEDPlayerViewController_Merge : UIViewController
+- (void)setVideoControllerPlaybackRate:(float)rate;
 @property(nonatomic,strong) UIView *contentView;
 @end
 

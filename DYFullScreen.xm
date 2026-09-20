@@ -1049,10 +1049,10 @@ static void DYToolsInstallSpeedButton(id controller) {
                 [(AWEAwemePlayVideoViewController *)vc setVideoControllerPlaybackRate:speed];
                 applied = YES;
             } else if ([vc isKindOfClass:NSClassFromString(@"AWEDPlayerFeedPlayerViewController")]) {
-                [(AWEDPlayerFeedPlayerViewController *)vc setVideoControllerPlaybackRate:speed];
+                ((void (*)(id, SEL, float))objc_msgSend)(vc, @selector(setVideoControllerPlaybackRate:), speed);
                 applied = YES;
             } else if ([vc isKindOfClass:NSClassFromString(@"AWEDPlayerViewController_Merge")]) {
-                [(AWEDPlayerViewController_Merge *)vc setVideoControllerPlaybackRate:speed];
+                ((void (*)(id, SEL, float))objc_msgSend)(vc, @selector(setVideoControllerPlaybackRate:), speed);
                 applied = YES;
             }
 

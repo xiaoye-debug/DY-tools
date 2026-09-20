@@ -3902,13 +3902,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
     self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
     _globalSearchEntries = [self dy_buildGlobalSearchEntries];
     _globalSearchResults = @[];
-    _globalSearchResultsController = [DYToolsSearchResultsViewController new];
-    __weak typeof(self) weakSelf = self;
-    _globalSearchResultsController.selectionHandler = ^(NSDictionary *item) {
-        __strong typeof(weakSelf) self = weakSelf;
-        if (self) [self dy_openGlobalSearchItem:item];
-    };
-
     // 使用独立 UISearchBar，不再使用 UISearchController。
     // 抖音 40.x / iOS 新版环境下 UISearchController 会干扰输入状态，
     // 导致输入一个关键词后无法继续编辑，同时结果刷新不稳定。

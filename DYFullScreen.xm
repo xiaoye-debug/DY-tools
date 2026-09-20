@@ -771,6 +771,273 @@ static void DYToolsApplyLabelColor(UILabel *label, NSString *hex) {
 }
 %end
 
+
+#pragma mark - IP attribution / foreign IP GeoNames migration
+
+static const void *kDYToolsIPCityCodeKey = &kDYToolsIPCityCodeKey;
+static NSCache *DYToolsIPLocationCache(void) {
+    static NSCache *cache;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cache = [NSCache new];
+        cache.name = @"com.dytools.ip-location";
+        cache.countLimit = 1000;
+    });
+    return cache;
+}
+
+static NSString *DYToolsIPFallbackFromModel(id model) {
+    if (!model) return nil;
+
+    NSString *raw = nil;
+    @try {
+        raw = [model valueForKey:@"ipAttribution"];
+    } @catch (__unused NSException *e) {
+        raw = nil;
+    }
+
+    if (![raw isKindOfClass:NSString.class]) return nil;
+
+    NSString *value = [raw stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (value.length == 0) return nil;
+
+    NSArray *prefixes = @[@"IP属地：", @"IP属地:", @"IP 属地：", @"IP 属地:"];
+    for (NSString *prefix in prefixes) {
+        if ([value hasPrefix:prefix]) {
+            value = [value substringFromIndex:prefix.length];
+            break;
+        }
+    }
+
+    value = [value stringByTrimmingCharactersInSet:
+             [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return value.length ? value : nil;
+}
+
+static void DYToolsApplyIPLabelStyle(UILabel *label) {
+    if (!label) return;
+
+    NSString *hex = [[NSUserDefaults standardUserDefaults]
+                     stringForKey:@"DYYYLabelColor"];
+
+    if (DYToolsFeatureBool(@"DYYYEnableRandomGradient")) {
+        // 这里先使用随机单色作为兼容实现；不影响属地文本本身。
+        CGFloat r = (CGFloat)arc4random_uniform(256) / 255.0;
+        CGFloat g = (CGFloat)arc4random_uniform(256) / 255.0;
+        CGFloat b = (CGFloat)arc4random_uniform(256) / 255.0;
+        label.textColor = [UIColor colorWithRed:r green:g blue:b alpha:1.0];
+        return;
+    }
+
+    UIColor *color = DYToolsColorFromHex(hex);
+    if (color) label.textColor = color;
+}
+
+static NSString *DYToolsDisplayGeoNamesLocation(NSDictionary *info) {
+    if (![info isKindOfClass:NSDictionary.class]) return nil;
+
+    NSString *country = [info[@"countryName"] isKindOfClass:NSString.class] ? info[@"countryName"] : nil;
+    NSString *admin = [info[@"adminName1"] isKindOfClass:NSString.class] ? info[@"adminName1"] : nil;
+    NSString *local = [info[@"name"] isKindOfClass:NSString.class] ? info[@"name"] : nil;
+
+    if (country.length) {
+        if (admin.length && local.length &&
+            ![country isEqualToString:@"中国"] &&
+            ![country isEqualToString:local]) {
+            return [NSString stringWithFormat:@"%@ %@ %@", country, admin, local];
+        }
+        if (local.length && ![country isEqualToString:local]) {
+            return [NSString stringWithFormat:@"%@ %@", country, local];
+        }
+        return country;
+    }
+
+    return local.length ? local : nil;
+}
+
+static void DYToolsSetIPLocationText(UILabel *label, NSString *location) {
+    if (!label || location.length == 0) return;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSString *current = label.text ?: @"";
+        NSRange range = [current rangeOfString:@"IP属地："];
+
+        NSString *newText;
+        if (range.location != NSNotFound) {
+            NSString *base = [current substringToIndex:range.location];
+            newText = [NSString stringWithFormat:@"%@IP属地：%@", base, location];
+        } else if (current.length > 0) {
+            newText = [NSString stringWithFormat:@"%@  IP属地：%@", current, location];
+        } else {
+            newText = [NSString stringWithFormat:@"IP属地：%@", location];
+        }
+
+        if (![current isEqualToString:newText]) {
+            label.text = newText;
+        }
+
+        DYToolsApplyIPLabelStyle(label);
+    });
+}
+
+static void DYToolsResolveIPLocation(UILabel *label, id model, NSString *cityCode) {
+    if (!label || !model || cityCode.length == 0) return;
+
+    objc_setAssociatedObject(label, kDYToolsIPCityCodeKey,
+                             cityCode, OBJC_ASSOCIATION_COPY_NONATOMIC);
+
+    NSString *cached = [DYToolsIPLocationCache() objectForKey:cityCode];
+    if (cached.length) {
+        DYToolsSetIPLocationText(label, cached);
+        return;
+    }
+
+    CityManager *manager = [CityManager sharedInstance];
+    NSString *cityName = [manager getCityNameWithCode:cityCode];
+    NSString *provinceName = [manager getProvinceNameWithCode:cityCode];
+
+    if (cityName.length) {
+        BOOL directCity =
+            [provinceName isEqualToString:cityName] ||
+            [cityCode hasPrefix:@"11"] ||
+            [cityCode hasPrefix:@"12"] ||
+            [cityCode hasPrefix:@"31"] ||
+            [cityCode hasPrefix:@"50"];
+
+        NSString *location;
+        if (directCity) {
+            location = cityName;
+        } else if (provinceName.length) {
+            location = [NSString stringWithFormat:@"%@ %@", provinceName, cityName];
+        } else {
+            location = cityName;
+        }
+
+        [DYToolsIPLocationCache() setObject:location forKey:cityCode];
+        DYToolsSetIPLocationText(label, location);
+        return;
+    }
+
+    // cityCode 不在国内行政区映射时，按 GeoNames ID 查询国外 IP。
+    NSString *username = [[NSUserDefaults standardUserDefaults]
+                          stringForKey:@"DYYYGeonamesUsername"];
+    if (username.length == 0) {
+        NSString *fallback = DYToolsIPFallbackFromModel(model);
+        if (fallback.length) DYToolsSetIPLocationText(label, fallback);
+        return;
+    }
+
+    __weak UILabel *weakLabel = label;
+    [CityManager fetchLocationWithGeonameId:cityCode
+                           completionHandler:^(NSDictionary *locationInfo, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UILabel *strongLabel = weakLabel;
+            if (!strongLabel) return;
+
+            NSString *currentCode =
+                objc_getAssociatedObject(strongLabel, kDYToolsIPCityCodeKey);
+            if (![currentCode isEqualToString:cityCode]) return;
+
+            NSString *location = nil;
+            if (!error) {
+                location = DYToolsDisplayGeoNamesLocation(locationInfo);
+            }
+
+            if (location.length == 0) {
+                location = DYToolsIPFallbackFromModel(model);
+            }
+
+            if (location.length) {
+                [DYToolsIPLocationCache() setObject:location forKey:cityCode];
+                DYToolsSetIPLocationText(strongLabel, location);
+            }
+        });
+    }];
+}
+
+@interface AWEPlayInteractionTimestampElement : NSObject
+@property(nonatomic,strong) id model;
+- (UILabel *)timestampLabel;
++ (BOOL)shouldActiveWithData:(id)arg1 context:(id)arg2;
+@end
+
+%hook AWEPlayInteractionTimestampElement
+
+- (UILabel *)timestampLabel {
+    UILabel *label = %orig;
+    if (!label || !DYToolsFeatureBool(@"DYYYEnableArea")) {
+        return label;
+    }
+
+    id model = nil;
+    @try {
+        model = self.model;
+    } @catch (__unused NSException *e) {
+        model = nil;
+    }
+
+    if (!model) return label;
+
+    NSString *cityCode = nil;
+    @try {
+        id value = [model valueForKey:@"cityCode"];
+        if ([value isKindOfClass:NSString.class]) {
+            cityCode = value;
+        } else if ([value respondsToSelector:@selector(stringValue)]) {
+            cityCode = [value stringValue];
+        }
+    } @catch (__unused NSException *e) {
+        cityCode = nil;
+    }
+
+    NSString *regionCode = nil;
+    @try {
+        id value = [model valueForKey:@"region"];
+        if ([value isKindOfClass:NSString.class]) {
+            regionCode = value;
+        } else if ([value respondsToSelector:@selector(stringValue)]) {
+            regionCode = [value stringValue];
+        }
+    } @catch (__unused NSException *e) {
+        regionCode = nil;
+    }
+
+    if ([cityCode isEqualToString:@"0"]) cityCode = nil;
+    if ([regionCode isEqualToString:@"0"]) regionCode = nil;
+
+    if (cityCode.length) {
+        DYToolsResolveIPLocation(label, model, cityCode);
+        return label;
+    }
+
+    if (regionCode.length) {
+        NSString *country = [[CityManager sharedInstance]
+                             getCountryNameWithCode:regionCode];
+        if (country.length) {
+            DYToolsSetIPLocationText(label, country);
+        } else {
+            NSString *fallback = DYToolsIPFallbackFromModel(model);
+            if (fallback.length) DYToolsSetIPLocationText(label, fallback);
+        }
+        return label;
+    }
+
+    NSString *fallback = DYToolsIPFallbackFromModel(model);
+    if (fallback.length) DYToolsSetIPLocationText(label, fallback);
+
+    return label;
+}
+
++ (BOOL)shouldActiveWithData:(id)arg1 context:(id)arg2 {
+    if (DYToolsFeatureBool(@"DYYYEnableArea")) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
 #pragma mark - Custom speed action for existing interaction controller
 
 %hook AWEPlayInteractionViewController

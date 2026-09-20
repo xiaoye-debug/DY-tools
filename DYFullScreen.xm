@@ -671,6 +671,9 @@ static void DYToolsInstallSpeedButton(id controller) {
 #pragma mark - Progress time / position / color
 
 @interface AWEFeedProgressSlider : UIView
+- (NSString *)dy_tools_formatTime:(CGFloat)seconds;
+- (CGFloat)dy_tools_modelDuration;
+- (void)dy_tools_updateSchedule:(CGFloat)current total:(CGFloat)total;
 @end
 
 %hook AWEFeedProgressSlider
@@ -817,7 +820,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 
 %hook AWEPlayInteractionProgressController
 - (void)updateProgressSliderWithTime:(CGFloat)time totalDuration:(CGFloat)duration {
-    %orig(time,totalDuration:duration);
+    %orig(time, duration);
     id slider = nil;
     @try { slider = [self valueForKey:@"progressSlider"]; } @catch (__unused NSException *e) {}
     if ([slider respondsToSelector:@selector(dy_tools_updateSchedule:total:)]) {
@@ -831,7 +834,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 
 %hook AWEDProgressCoreContainer
 - (void)updateProgressSliderWithTime:(CGFloat)time totalDuration:(CGFloat)duration {
-    %orig(time,totalDuration:duration);
+    %orig(time, duration);
     id slider = nil;
     @try { slider = [self valueForKey:@"progressSlider"]; } @catch (__unused NSException *e) {}
     if ([slider respondsToSelector:@selector(dy_tools_updateSchedule:total:)]) {
@@ -893,6 +896,9 @@ static void DYToolsInstallSpeedButton(id controller) {
 #pragma mark - Speed controller / default speed / long-press speed
 
 @interface AWEPlayInteractionSpeedController : NSObject
+- (void)changeSpeed:(double)speed;
+- (CGFloat)longPressFastSpeedValue;
+- (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture;
 @end
 
 %hook AWEPlayInteractionSpeedController

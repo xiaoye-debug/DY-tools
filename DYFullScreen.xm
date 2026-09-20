@@ -3850,49 +3850,122 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 }
 
 - (NSArray *)dy_buildGlobalSearchEntries {
-    return @[
-        @{@"title":@"基本设置", @"key":@"__DYTOOLS_BASIC_CATEGORY__", @"category":@"设置", @"type":@"basicCategory"},
-        @{@"title":@"全屏", @"key":@"__DYTOOLS_FULLSCREEN_CATEGORY__", @"category":@"全屏", @"type":@"mainCategory"},
-        @{@"title":@"视频界面", @"key":@"__DYTOOLS_VIDEO_CATEGORY__", @"category":@"视频界面", @"type":@"videoCategory"},
-        @{@"title":@"直播与互动", @"key":@"__DYTOOLS_LIVE_CATEGORY__", @"category":@"直播与互动", @"type":@"mainCategory"},
+    NSMutableArray *a = [NSMutableArray array];
 
-        @{@"title":@"视频全屏", @"key":kDYFSFullScreenEnabledKey, @"category":@"全屏", @"type":@"main"},
+    void (^add)(NSString *, NSString *, NSString *, NSString *, NSString *) =
+    ^(NSString *title, NSString *key, NSString *category, NSString *type, NSString *keywords) {
+        [a addObject:@{
+            @"title": title ?: @"",
+            @"key": key ?: @"",
+            @"category": category ?: @"",
+            @"type": type ?: @"main",
+            @"keywords": keywords ?: @""
+        }];
+    };
 
-        @{@"title":@"快捷倍速悬浮按钮", @"key":@"DYYYEnableFloatSpeedButton", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"显示进度时长", @"key":@"DYYYShowScheduleDisplay", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"设置默认倍速", @"key":@"DYYYDefaultSpeed", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"设置长按倍速", @"key":@"DYYYLongPressSpeed", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"上下控制倍速", @"key":@"DYYYEnableLongPressSpeedGesture", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"自动恢复默认倍速", @"key":@"DYYYAutoRestoreSpeed", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"启用自动播放", @"key":@"DYYYEnableAutoPlay", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"禁用双击视频点赞", @"key":@"DYYYDisableDoubleTapLike", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"禁用点击首页刷新", @"key":@"DYYYDisableHomeRefresh", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"启用屏蔽广告", @"key":@"DYYYNoAds", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"显示开播时长", @"key":@"DYYYShowLiveDuration", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"禁用访客记录上传", @"key":@"DYYYDisableProfileVisitRecordUpload", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"禁用作品浏览记录上传", @"key":@"DYYYDisableFeedHistoryUpload", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"小程序跳广告", @"key":@"DYYYMiniProgramSkipAd", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"评论具体时间", @"key":@"DYYYCommentExactTime", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"屏蔽灵动岛抖音播放信息", @"key":@"DYYYDisableFeedNowPlayingInfo", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"提高视频画质", @"key":@"DYYYEnableVideoHighestQuality", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"禁用直播PCDN功能", @"key":@"DYYYDisableLivePCDN", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"隐藏系统顶栏", @"key":@"DYYYHideStatusbar", @"category":@"基本设置", @"type":@"basic"},
-        @{@"title":@"评论区毛玻璃", @"key":@"DYYYEnableCommentBlur", @"category":@"基本设置", @"type":@"basic"},
+    add(@"基本设置", @"__DYTOOLS_BASIC_CATEGORY__", @"设置", @"basicCategory", @"基本设置 基础 通用");
+    add(@"全屏", @"__DYTOOLS_FULLSCREEN_CATEGORY__", @"全屏", @"mainCategory", @"全屏 视频全屏");
+    add(@"视频界面", @"__DYTOOLS_VIDEO_CATEGORY__", @"视频界面", @"videoCategory", @"视频 视频界面");
+    add(@"直播与互动", @"__DYTOOLS_LIVE_CATEGORY__", @"直播与互动", @"mainCategory", @"直播 互动");
 
-        @{@"title":@"视频设置", @"key":@"__DYTOOLS_VIDEO_SETTINGS__", @"category":@"视频界面", @"type":@"videoCategory"},
-        @{@"title":@"移除顶栏", @"key":@"__DYTOOLS_TOPBAR__", @"category":@"视频界面", @"type":@"topCategory"},
-        @{@"title":@"移除底栏", @"key":@"__DYTOOLS_BOTTOMBAR__", @"category":@"视频界面", @"type":@"bottomCategory"},
-        @{@"title":@"移除去汽水听", @"key":kDYToolsRemoveShuiTingKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除相关搜索", @"key":kDYToolsRemoveRelatedSearchKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除热点栏", @"key":kDYToolsRemoveHotspotKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除音乐按钮", @"key":kDYToolsHideMusicButtonKey, @"category":@"视频设置", @"type":@"video"},
-        @{@"title":@"移除视频位置", @"key":@"DYYYHideLocation", @"category":@"视频设置", @"type":@"video"},
-
-        @{@"title":@"去除进入直播间提示", @"key":kDYToolsHideEnterLiveKey, @"category":@"直播与互动", @"type":@"main"},
-        @{@"title":@"禁止自动进入直播间", @"key":kDYToolsDisableAutoEnterLiveKey, @"category":@"直播与互动", @"type":@"main"}
+    NSArray *basic = @[
+        @[@"视频背景颜色",@"DYYYVideoBGColor",@"视频背景 背景颜色"],
+        @[@"启用弹幕改色",@"DYYYEnableDanmuColor",@"弹幕 弹幕颜色 改色"],
+        @[@"自定弹幕颜色",@"DYYYDanmuColor",@"弹幕 自定义颜色"],
+        @[@"设置默认倍速",@"DYYYDefaultSpeed",@"倍速 默认速度 播放速度"],
+        @[@"设置长按倍速",@"DYYYLongPressSpeed",@"倍速 长按速度"],
+        @[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture",@"倍速 上下控制"],
+        @[@"自动恢复默认倍速",@"DYYYAutoRestoreSpeed",@"倍速 自动恢复"],
+        @[@"快捷倍速悬浮按钮",@"DYYYEnableFloatSpeedButton",@"倍速 悬浮按钮"],
+        @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
+        @[@"进度时长样式",@"DYYYScheduleStyle",@"进度 样式"],
+        @[@"进度纵轴位置",@"DYYYTimelineVerticalPosition",@"进度 位置"],
+        @[@"进度标签颜色",@"DYYYProgressLabelColor",@"进度 标签 颜色"],
+        @[@"隐藏视频进度",@"DYYYHideVideoProgress",@"隐藏 进度 视频进度条"],
+        @[@"启用自动播放",@"DYYYEnableAutoPlay",@"自动播放 播放"],
+        @[@"禁用双击视频点赞",@"DYYYDisableDoubleTapLike",@"双击 点赞 双击点赞"],
+        @[@"禁用点击首页刷新",@"DYYYDisableHomeRefresh",@"首页 刷新"],
+        @[@"忽略投屏 VPN 检测",@"DYYYDisableCastVPNCheck",@"投屏 VPN 检测"],
+        @[@"推荐过滤直播",@"DYYYSkipLive",@"推荐 直播 过滤"],
+        @[@"推荐过滤热点",@"DYYYSkipHotSpot",@"推荐 热点 过滤"],
+        @[@"推荐过滤低赞",@"DYYYFilterLowLikes",@"推荐 低赞 点赞 过滤"],
+        @[@"推荐视频时限",@"DYYYFilterTimeLimit",@"推荐 视频 时限 时间"],
+        @[@"推荐过滤HDR",@"DYYYFilterFeedHDR",@"推荐 HDR 过滤"],
+        @[@"启用首页净化",@"DYYYEnablePure",@"首页 净化"],
+        @[@"启用首页全屏",@"DYYYEnableFullScreen",@"首页 全屏"],
+        @[@"启用屏蔽广告",@"DYYYNoAds",@"广告 屏蔽"],
+        @[@"屏蔽检测更新",@"DYYYNoUpdates",@"更新 检测 屏蔽"],
+        @[@"去青少年弹窗",@"DYYYHideTeenMode",@"青少年 弹窗"],
+        @[@"评论区毛玻璃",@"DYYYEnableCommentBlur",@"评论 毛玻璃 模糊"],
+        @[@"通知玻璃效果",@"DYYYEnableNotificationTransparency",@"通知 毛玻璃 玻璃"],
+        @[@"毛玻璃透明度",@"DYYYCommentBlurTransparent",@"毛玻璃 透明度"],
+        @[@"通知圆角半径",@"DYYYNotificationCornerRadius",@"通知 圆角"],
+        @[@"时间属地显示",@"DYYYEnableArea",@"时间 属地 IP 属地"],
+        @[@"国外解析账号",@"DYYYGeonamesUsername",@"国外 解析 账号"],
+        @[@"时间标签颜色",@"DYYYLabelColor",@"时间 标签 颜色"],
+        @[@"属地随机渐变",@"DYYYEnableRandomGradient",@"属地 渐变 随机"],
+        @[@"隐藏系统顶栏",@"DYYYHideStatusbar",@"系统顶栏 状态栏 隐藏"],
+        @[@"关注二次确认",@"DYYYFollowTips",@"关注 二次确认"],
+        @[@"收藏二次确认",@"DYYYCollectTips",@"收藏 二次确认"],
+        @[@"默认直播画质",@"DYYYLiveQuality",@"直播 画质 清晰度"],
+        @[@"提高视频画质",@"DYYYEnableVideoHighestQuality",@"视频 画质 高清 清晰"],
+        @[@"禁用直播PCDN功能",@"DYYYDisableLivePCDN",@"直播 PCDN"],
+        @[@"禁止直播入口自动隐藏",@"DYYYDisableAutoHideLive",@"直播 入口 自动隐藏"],
+        @[@"显示开播时长",@"DYYYShowLiveDuration",@"直播 开播时长"],
+        @[@"禁用访客记录上传",@"DYYYDisableProfileVisitRecordUpload",@"访客 记录 上传"],
+        @[@"禁用作品浏览记录上传",@"DYYYDisableFeedHistoryUpload",@"作品 浏览记录 上传"],
+        @[@"小程序跳广告",@"DYYYMiniProgramSkipAd",@"小程序 广告"],
+        @[@"评论具体时间",@"DYYYCommentExactTime",@"评论 时间"],
+        @[@"屏蔽灵动岛抖音播放信息",@"DYYYDisableFeedNowPlayingInfo",@"灵动岛 播放信息"]
     ];
-}
+    for (NSArray *x in basic) add(x[0], x[1], @"基本设置", @"basic", x[2]);
 
+    NSArray *video = @[
+        @[@"移除去汽水听",kDYToolsRemoveShuiTingKey,@"汽水听 去汽水听"],
+        @[@"移除相关搜索",kDYToolsRemoveRelatedSearchKey,@"相关搜索 搜索"],
+        @[@"移除热点栏",kDYToolsRemoveHotspotKey,@"热点 热点栏"],
+        @[@"移除音乐按钮",kDYToolsHideMusicButtonKey,@"音乐 音乐按钮"],
+        @[@"移除视频位置",@"DYYYHideLocation",@"位置 视频位置 属地"]
+    ];
+    for (NSArray *x in video) add(x[0], x[1], @"视频设置", @"video", x[2]);
+
+    NSArray *top = @[
+        @[@"移除推荐",@"DYYYHideHotContainer",@"推荐 热门"],
+        @[@"移除朋友",@"DYYYHideFriend",@"朋友 好友"],
+        @[@"移除关注",@"DYYYHideFollow",@"关注"],
+        @[@"移除精选",@"DYYYHideMediumVideo",@"精选 长视频"],
+        @[@"移除商城",@"DYYYHideMall",@"商城"],
+        @[@"移除同城",@"DYYYHideNearby",@"同城 附近"],
+        @[@"移除团购",@"DYYYHideGroupon",@"团购"],
+        @[@"移除直播",@"DYYYHideTabLive",@"直播"],
+        @[@"移除热点",@"DYYYHidePadHot",@"热点"],
+        @[@"移除经验",@"DYYYHideHangout",@"经验"],
+        @[@"移除短剧",@"DYYYHidePlaylet",@"短剧"],
+        @[@"移除看剧",@"DYYYHideCinema",@"看剧 电影"],
+        @[@"移除少儿",@"DYYYHideKidsV2",@"少儿 儿童"],
+        @[@"移除游戏",@"DYYYHideGame",@"游戏"]
+    ];
+    for (NSArray *x in top) add(x[0], x[1], @"移除顶栏", @"top", x[2]);
+
+    NSArray *bottom = @[
+        @[@"隐藏底栏商城",@"DYYYHideShopButton",@"底栏 商城"],
+        @[@"隐藏双列入口",@"DYYYHideDoubleColumnEntry",@"底栏 双列 入口"],
+        @[@"隐藏底栏消息",@"DYYYHideMessageButton",@"底栏 消息"],
+        @[@"隐藏底栏朋友",@"DYYYHideFriendsButton",@"底栏 朋友 好友"],
+        @[@"隐藏底栏我的",@"DYYYHideMyButton",@"底栏 我的 个人"],
+        @[@"隐藏底栏加号",@"DYYYHidePlusButton",@"底栏 加号 发布"],
+        @[@"隐藏底栏评论",@"DYYYHideComment",@"底栏 评论"],
+        @[@"隐藏底栏红点",@"DYYYHideBottomDot",@"底栏 红点 小红点 消息红点"],
+        @[@"隐藏底栏背景",@"DYYYHideBottomBg",@"底栏 背景"],
+        @[@"精简平板底栏",@"DYYYHidePadTabBarElements",@"平板 底栏"]
+    ];
+    for (NSArray *x in bottom) add(x[0], x[1], @"移除底栏", @"bottom", x[2]);
+
+    add(@"去除进入直播间提示", kDYToolsHideEnterLiveKey, @"直播与互动", @"main", @"直播 进入直播间 提示");
+    add(@"禁止自动进入直播间", kDYToolsDisableAutoEnterLiveKey, @"直播与互动", @"main", @"直播 自动进入 自动跳转");
+
+    return [a copy];
+}
 - (void)viewDidLoad {
     [super viewDidLoad];
 

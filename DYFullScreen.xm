@@ -1032,6 +1032,17 @@ static void DYToolsInstallSpeedButton(id controller) {
     // Keep Douyin's original contentView geometry.
     // Expanding this view to the stretched feed height pushes the title/caption down.
     %orig;
+    if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
+    if (DYToolsFeatureBool(@"DYYYDefaultSpeed")) DYToolsApplyDefaultSpeedIfNeeded(self);
+    if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
+}
+
+- (void)setIsAutoPlay:(BOOL)value {
+    %orig(value);
+    if (DYToolsFeatureBool(@"DYYYDefaultSpeed") || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+        DYToolsApplyDefaultSpeedIfNeeded(self);
+        if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
+    }
 }
 %end
 
@@ -1565,6 +1576,21 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
 
     CGRect target = DYFSAdjustMergeFrame(view, view.frame);
     if (!CGRectIsNull(target)) view.frame = target;
+}
+
+- (void)setIsAutoPlay:(BOOL)value {
+    %orig(value);
+    if (DYToolsFeatureBool(@"DYYYDefaultSpeed") || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+        DYToolsApplyDefaultSpeedIfNeeded(self);
+        if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
+    }
+}
+
+- (void)prepareForDisplay {
+    %orig;
+    if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
+    if (DYToolsFeatureBool(@"DYYYDefaultSpeed")) DYToolsApplyDefaultSpeedIfNeeded(self);
+    if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
 }
 
 - (void)viewDidLayoutSubviews {

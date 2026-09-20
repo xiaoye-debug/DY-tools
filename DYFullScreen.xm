@@ -491,10 +491,489 @@ static UIWindow *DYFSActiveWindow(void) {
 
 static CGFloat DYFSFeedTableOriginalHeight(UIView *view);
 
+
+#pragma mark - DYYY basic video feature migration
+
+static BOOL DYToolsFeatureBool(NSString *key) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:key];
+}
+
+static CGFloat DYToolsFeatureFloat(NSString *key, CGFloat fallback) {
+    id value = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        CGFloat v = [value doubleValue];
+        if (v != 0.0 || ([value isKindOfClass:NSNumber.class] && v == 0.0)) {
+            return v;
+        }
+    }
+    if ([value isKindOfClass:NSString.class]) {
+        NSString *s = [(NSString *)value stringByReplacingOccurrencesOfString:@"x" withString:@""];
+        CGFloat v = s.floatValue;
+        if (v > 0.0) return v;
+    }
+    return fallback;
+}
+
+static UIColor *DYToolsColorFromHex(NSString *value) {
+    if (![value isKindOfClass:NSString.class]) return nil;
+    NSString *s = [value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (s.length == 0) return nil;
+    if ([s hasPrefix:@"#"]) s = [s substringFromIndex:1];
+    if ([s hasPrefix:@"0x"] || [s hasPrefix:@"0X"]) s = [s substringFromIndex:2];
+
+    if (s.length == 3) {
+        unichar r = [s characterAtIndex:0];
+        unichar g = [s characterAtIndex:1];
+        unichar b = [s characterAtIndex:2];
+        s = [NSString stringWithFormat:@"%C%C%C%C%C%C", r,r,g,g,b,b];
+    }
+    if (s.length != 6 && s.length != 8) return nil;
+
+    unsigned long long hex = 0;
+    NSScanner *scanner = [NSScanner scannerWithString:s];
+    if (![scanner scanHexLongLong:&hex]) return nil;
+
+    CGFloat r = ((hex >> (s.length == 8 ? 24 : 16)) & 0xFF) / 255.0;
+    CGFloat g = ((hex >> (s.length == 8 ? 16 : 8)) & 0xFF) / 255.0;
+    CGFloat b = ((hex >> (s.length == 8 ? 8 : 0)) & 0xFF) / 255.0;
+    CGFloat a = s.length == 8 ? (hex & 0xFF) / 255.0 : 1.0;
+    return [UIColor colorWithRed:r green:g blue:b alpha:a];
+}
+
+static void DYToolsApplyLabelColor(UILabel *label, NSString *hex) {
+    UIColor *color = DYToolsColorFromHex(hex);
+    if (color) label.textColor = color;
+}
+
+static float DYToolsCurrentDefaultSpeed(void) {
+    return (float)DYToolsFeatureFloat(@"DYYYDefaultSpeed", 1.0);
+}
+
+static float DYToolsCurrentLongPressSpeed(void) {
+    return (float)DYToolsFeatureFloat(@"DYYYLongPressSpeed", 2.0);
+}
+
+static NSArray<NSNumber *> *DYToolsSpeedOptions(void) {
+    return @[@0.75, @1.0, @1.25, @1.5, @2.0, @2.5, @3.0];
+}
+
+static NSInteger DYToolsCurrentSpeedIndex(void) {
+    NSInteger index = [[NSUserDefaults standardUserDefaults] integerForKey:@"DYToolsCurrentSpeedIndex"];
+    NSArray *options = DYToolsSpeedOptions();
+    if (index < 0 || index >= (NSInteger)options.count) index = 0;
+    return index;
+}
+
+static float DYToolsCurrentCycleSpeed(void) {
+    return [DYToolsSpeedOptions()[DYToolsCurrentSpeedIndex()] floatValue];
+}
+
+static void DYToolsSetCycleSpeedIndex(NSInteger index) {
+    NSArray *options = DYToolsSpeedOptions();
+    if (options.count == 0) return;
+    index = (index % (NSInteger)options.count + (NSInteger)options.count) % (NSInteger)options.count;
+    [[NSUserDefaults standardUserDefaults] setInteger:index forKey:@"DYToolsCurrentSpeedIndex"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+static void DYToolsApplyPlaybackRateToController(id controller, float rate) {
+    if (!controller || rate <= 0.0) return;
+    SEL sel = NSSelectorFromString(@"setVideoControllerPlaybackRate:");
+    if (![controller respondsToSelector:sel]) return;
+    @try {
+        void (*msg)(id, SEL, float) = (void (*)(id, SEL, float))objc_msgSend;
+        msg(controller, sel, rate);
+    } @catch (__unused NSException *e) {
+    }
+}
+
+static void DYToolsApplyDefaultSpeedIfNeeded(id controller) {
+    if (!controller) return;
+    float speed = DYToolsCurrentDefaultSpeed();
+    if (speed > 0.0 && fabsf(speed - 1.0f) > 0.001f) {
+        DYToolsApplyPlaybackRateToController(controller, speed);
+    }
+}
+
+static void DYToolsApplyCurrentCycleSpeed(id controller) {
+    float speed = DYToolsCurrentCycleSpeed();
+    if (speed > 0.0 && fabsf(speed - 1.0f) > 0.001f) {
+        DYToolsApplyPlaybackRateToController(controller, speed);
+    } else if (speed > 0.0) {
+        DYToolsApplyPlaybackRateToController(controller, speed);
+    }
+}
+
+@interface DYToolsSpeedButton : UIButton
+@property(nonatomic,weak) id dyController;
+@end
+
+@implementation DYToolsSpeedButton
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.accessibilityLabel = @"DYToolsSpeedButton";
+        self.backgroundColor = [UIColor colorWithWhite:0 alpha:0.28];
+        self.layer.cornerRadius = frame.size.width / 2.0;
+        self.layer.borderWidth = 1.0;
+        self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.25].CGColor;
+        self.titleLabel.font = [UIFont boldSystemFontOfSize:13.0];
+        [self setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+        self.alpha = 0.75;
+    }
+    return self;
+}
+@end
+
+static char kDYToolsSpeedButtonKey;
+
+static NSString *DYToolsSpeedButtonTitle(float speed) {
+    NSString *s;
+    if (fabsf(speed - roundf(speed)) < 0.001f) {
+        s = [NSString stringWithFormat:@"%.0fx", speed];
+    } else if (fabsf(speed * 10.0f - roundf(speed * 10.0f)) < 0.001f) {
+        s = [NSString stringWithFormat:@"%.1fx", speed];
+    } else {
+        s = [NSString stringWithFormat:@"%.2fx", speed];
+    }
+    return s;
+}
+
+static void DYToolsInstallSpeedButton(id controller) {
+    if (!controller || !DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+        UIButton *old = objc_getAssociatedObject(controller, &kDYToolsSpeedButtonKey);
+        old.hidden = YES;
+        return;
+    }
+
+    UIWindow *window = DYFSActiveWindow();
+    if (!window) return;
+
+    DYToolsSpeedButton *button = objc_getAssociatedObject(controller, &kDYToolsSpeedButtonKey);
+    if (!button) {
+        CGFloat size = 34.0;
+        button = [[DYToolsSpeedButton alloc] initWithFrame:CGRectMake(0, 0, size, size)];
+        button.dyController = controller;
+        [button addTarget:controller action:@selector(dy_tools_speedButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+        objc_setAssociatedObject(controller, &kDYToolsSpeedButtonKey, button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    if (button.superview != window) {
+        [button removeFromSuperview];
+        button.center = CGPointMake(window.bounds.size.width - 28.0, window.bounds.size.height * 0.55);
+        [window addSubview:button];
+    }
+
+    button.hidden = NO;
+    [button setTitle:DYToolsSpeedButtonTitle(DYToolsCurrentCycleSpeed()) forState:UIControlStateNormal];
+}
+
+#pragma mark - Progress time / position / color
+
+@interface AWEFeedProgressSlider : UIView
+@end
+
+%hook AWEFeedProgressSlider
+
+- (void)setAlpha:(CGFloat)alpha {
+    if (DYToolsFeatureBool(@"DYYYHideVideoProgress")) {
+        %orig(0.0);
+        return;
+    }
+    if (DYToolsFeatureBool(@"DYYYShowScheduleDisplay")) {
+        %orig(1.0);
+        return;
+    }
+    %orig(alpha);
+}
+
+- (void)setHidden:(BOOL)hidden {
+    %orig(hidden);
+    if (!hidden && DYToolsFeatureBool(@"DYYYHideVideoProgress")) {
+        self.alpha = 0.0;
+    }
+}
+
+%new
+- (NSString *)dy_tools_formatTime:(CGFloat)seconds {
+    NSInteger total = MAX(0, (NSInteger)floor(seconds));
+    NSInteger hours = total / 3600;
+    NSInteger minutes = (total % 3600) / 60;
+    NSInteger secs = total % 60;
+    if (hours > 0) return [NSString stringWithFormat:@"%02ld:%02ld:%02ld",(long)hours,(long)minutes,(long)secs];
+    return [NSString stringWithFormat:@"%02ld:%02ld",(long)minutes,(long)secs];
+}
+
+%new
+- (CGFloat)dy_tools_modelDuration {
+    id delegate = nil;
+    @try { delegate = [self valueForKey:@"progressSliderDelegate"]; } @catch (__unused NSException *e) {}
+    id model = nil;
+    if (delegate) {
+        @try { model = [delegate valueForKey:@"model"]; } @catch (__unused NSException *e) {}
+    }
+    if (!model) return 0;
+    @try {
+        return [[model valueForKey:@"videoDuration"] doubleValue] / 1000.0;
+    } @catch (__unused NSException *e) {
+        return 0;
+    }
+}
+
+%new
+- (void)dy_tools_updateSchedule:(CGFloat)current total:(CGFloat)total {
+    if (!DYToolsFeatureBool(@"DYYYShowScheduleDisplay")) {
+        UIView *p = self.superview;
+        [[p viewWithTag:10001] removeFromSuperview];
+        [[p viewWithTag:10002] removeFromSuperview];
+        return;
+    }
+    if (!NSThread.isMainThread) {
+        __weak typeof(self) weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf dy_tools_updateSchedule:current total:total];
+        });
+        return;
+    }
+
+    UIView *parent = self.superview;
+    if (!parent) return;
+    [parent layoutIfNeeded];
+    [self layoutIfNeeded];
+
+    CGFloat modelDuration = [self dy_tools_modelDuration];
+    CGFloat duration = total > 0 ? total : modelDuration;
+    CGFloat now = MAX(0, current);
+    if (duration > 0) now = MIN(now, duration);
+
+    NSString *style = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYScheduleStyle"];
+    BOOL rightRemaining = [style isEqualToString:@"进度条右侧剩余"];
+    BOOL rightComplete = [style isEqualToString:@"进度条右侧完整"];
+    BOOL leftRemaining = [style isEqualToString:@"进度条左侧剩余"];
+    BOOL leftComplete = [style isEqualToString:@"进度条左侧完整"];
+
+    BOOL showLeft = !rightRemaining && !rightComplete;
+    BOOL showRight = !leftRemaining && !leftComplete;
+
+    CGFloat offset = DYToolsFeatureFloat(@"DYYYTimelineVerticalPosition", -12.5);
+    CGRect frame = [self convertRect:self.bounds toView:parent];
+    if (frame.size.width <= 1 || frame.size.height <= 1) return;
+
+    NSString *colorHex = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYProgressLabelColor"];
+
+    UILabel *left = (UILabel *)[parent viewWithTag:10001];
+    UILabel *right = (UILabel *)[parent viewWithTag:10002];
+
+    if (showLeft) {
+        if (![left isKindOfClass:UILabel.class]) {
+            [left removeFromSuperview];
+            left = [UILabel new];
+            left.tag = 10001;
+            [parent addSubview:left];
+        }
+        NSString *text = leftRemaining ? [self dy_tools_formatTime:MAX(duration-now,0)] :
+                         leftComplete ? [NSString stringWithFormat:@"%@/%@",[self dy_tools_formatTime:now],[self dy_tools_formatTime:duration]] :
+                         [self dy_tools_formatTime:now];
+        left.text = text;
+        left.font = [UIFont systemFontOfSize:8.0];
+        left.backgroundColor = UIColor.clearColor;
+        [left sizeToFit];
+        left.frame = CGRectMake(CGRectGetMinX(frame), CGRectGetMinY(frame)+offset, left.bounds.size.width, 15);
+        DYToolsApplyLabelColor(left,colorHex);
+    } else {
+        [left removeFromSuperview];
+    }
+
+    if (showRight) {
+        if (![right isKindOfClass:UILabel.class]) {
+            [right removeFromSuperview];
+            right = [UILabel new];
+            right.tag = 10002;
+            [parent addSubview:right];
+        }
+        NSString *text = rightRemaining ? [self dy_tools_formatTime:MAX(duration-now,0)] :
+                         rightComplete ? [NSString stringWithFormat:@"%@/%@",[self dy_tools_formatTime:now],[self dy_tools_formatTime:duration]] :
+                         [self dy_tools_formatTime:duration];
+        right.text = text;
+        right.font = [UIFont systemFontOfSize:8.0];
+        right.backgroundColor = UIColor.clearColor;
+        [right sizeToFit];
+        right.frame = CGRectMake(MAX(CGRectGetMaxX(frame)-right.bounds.size.width,CGRectGetMinX(frame)),
+                                  CGRectGetMinY(frame)+offset,right.bounds.size.width,15);
+        DYToolsApplyLabelColor(right,colorHex);
+    } else {
+        [right removeFromSuperview];
+    }
+}
+
+- (void)setLimitUpperActionArea:(BOOL)arg1 {
+    %orig;
+    [self dy_tools_updateSchedule:0 total:0];
+}
+%end
+
+@interface AWEPlayInteractionProgressController : NSObject
+@end
+
+%hook AWEPlayInteractionProgressController
+- (void)updateProgressSliderWithTime:(CGFloat)time totalDuration:(CGFloat)duration {
+    %orig(time,totalDuration:duration);
+    id slider = nil;
+    @try { slider = [self valueForKey:@"progressSlider"]; } @catch (__unused NSException *e) {}
+    if ([slider respondsToSelector:@selector(dy_tools_updateSchedule:total:)]) {
+        [slider dy_tools_updateSchedule:time total:duration];
+    }
+}
+%end
+
+@interface AWEDProgressCoreContainer : NSObject
+@end
+
+%hook AWEDProgressCoreContainer
+- (void)updateProgressSliderWithTime:(CGFloat)time totalDuration:(CGFloat)duration {
+    %orig(time,totalDuration:duration);
+    id slider = nil;
+    @try { slider = [self valueForKey:@"progressSlider"]; } @catch (__unused NSException *e) {}
+    if ([slider respondsToSelector:@selector(dy_tools_updateSchedule:total:)]) {
+        [slider dy_tools_updateSchedule:time total:duration];
+    }
+}
+%end
+
+#pragma mark - Danmaku / video background
+
+@interface AWEDanmakuContentLabel : UILabel
+@end
+
+%hook AWEDanmakuContentLabel
+- (void)setTextColor:(UIColor *)textColor {
+    if (DYToolsFeatureBool(@"DYYYEnableDanmuColor")) {
+        NSString *hex = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDanmuColor"];
+        UIColor *color = DYToolsColorFromHex(hex);
+        if (color) {
+            %orig(color);
+        } else {
+            %orig(textColor);
+        }
+        return;
+    }
+    %orig(textColor);
+}
+- (void)setStrokeWidth:(double)strokeWidth {
+    if (DYToolsFeatureBool(@"DYYYEnableDanmuColor")) {
+        %orig(FLT_MIN);
+        return;
+    }
+    %orig(strokeWidth);
+}
+- (void)setStrokeColor:(UIColor *)strokeColor {
+    if (DYToolsFeatureBool(@"DYYYEnableDanmuColor")) {
+        %orig(nil);
+        return;
+    }
+    %orig(strokeColor);
+}
+%end
+
+@interface AWEAwemeModel : NSObject
+@end
+
+%hook AWEAwemeModel
+- (NSUInteger)awe_playerBackgroundViewShowType {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYVideoBGColor"]) return 1;
+    return %orig;
+}
+- (UIColor *)awe_smartBackgroundColor {
+    NSString *hex = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYVideoBGColor"];
+    UIColor *color = DYToolsColorFromHex(hex);
+    return color ?: %orig;
+}
+%end
+
+#pragma mark - Speed controller / default speed / long-press speed
+
+@interface AWEPlayInteractionSpeedController : NSObject
+@end
+
+%hook AWEPlayInteractionSpeedController
+- (CGFloat)longPressFastSpeedValue {
+    if (DYToolsFeatureBool(@"DYYYLongPressSpeed")) {
+        return DYToolsCurrentLongPressSpeed();
+    }
+    return %orig;
+}
+- (void)changeSpeed:(double)speed {
+    if (DYToolsFeatureBool(@"DYYYEnableLongPressSpeedGesture")) {
+        CGFloat configured = DYToolsCurrentLongPressSpeed();
+        if (configured > 0 && fabs(speed - 2.0) < 0.001) {
+            %orig(configured);
+            return;
+        }
+    }
+    %orig(speed);
+}
+- (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture {
+    %orig;
+    if (!DYToolsFeatureBool(@"DYYYEnableLongPressSpeedGesture")) return;
+
+    static CGFloat currentSpeed = 0;
+    static CGFloat lastY = 0;
+    if (gesture.state == UIGestureRecognizerStateBegan) {
+        lastY = [gesture locationInView:gesture.view].y;
+        currentSpeed = DYToolsCurrentLongPressSpeed();
+    } else if (gesture.state == UIGestureRecognizerStateChanged) {
+        CGFloat y = [gesture locationInView:gesture.view].y;
+        CGFloat delta = y - lastY;
+        if (fabs(delta) >= 10.0) {
+            CGFloat next = MAX(0.5, MIN(3.0, currentSpeed + (delta > 0 ? 0.25 : -0.25)));
+            if (fabs(next-currentSpeed) > 0.001) {
+                currentSpeed = next;
+                lastY = y;
+                [self changeSpeed:currentSpeed];
+            }
+        }
+    } else if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled) {
+        currentSpeed = 0;
+        lastY = 0;
+    }
+}
+%end
+
+#pragma mark - Default speed / restore speed
+
+@interface AWEAwemePlayVideoViewController : UIViewController
+- (void)setVideoControllerPlaybackRate:(float)rate;
+- (void)prepareForDisplay;
+@end
+
+%hook AWEAwemePlayVideoViewController
+- (void)setIsAutoPlay:(BOOL)value {
+    %orig(value);
+    if (!DYToolsFeatureBool(@"DYYYDefaultSpeed") && !DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        DYToolsApplyDefaultSpeedIfNeeded(self);
+        if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
+        if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
+    });
+}
+- (void)prepareForDisplay {
+    %orig;
+    if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
+    if (DYToolsFeatureBool(@"DYYYDefaultSpeed") || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+        DYToolsApplyDefaultSpeedIfNeeded(self);
+        DYToolsApplyCurrentCycleSpeed(self);
+    }
+}
+%end
+
+#pragma mark - Custom speed action for existing interaction controller
+
 %hook AWEPlayInteractionViewController
 
 - (void)viewDidLayoutSubviews {
     %orig;
+
+    DYToolsInstallSpeedButton(self);
 
     if (!DYFSIsEnabled()) return;
 
@@ -513,6 +992,33 @@ static CGFloat DYFSFeedTableOriginalHeight(UIView *view);
     frame.origin.y = 0.0;
     frame.size.height = original;
     view.frame = frame;
+}
+
+
+%new
+- (void)dy_tools_speedButtonTapped:(UIButton *)sender {
+    if (!DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) return;
+
+    NSInteger nextIndex = DYToolsCurrentSpeedIndex() + 1;
+    DYToolsSetCycleSpeedIndex(nextIndex);
+    float speed = DYToolsCurrentCycleSpeed();
+    [sender setTitle:DYToolsSpeedButtonTitle(speed) forState:UIControlStateNormal];
+
+    DYToolsApplyPlaybackRateToController(self, speed);
+
+    UIWindow *window = DYFSActiveWindow();
+    UIViewController *root = window.rootViewController;
+    while (root.presentedViewController) root = root.presentedViewController;
+
+    if (root) {
+        NSMutableArray *stack = [NSMutableArray arrayWithObject:root];
+        while (stack.count) {
+            UIViewController *vc = stack.lastObject;
+            [stack removeLastObject];
+            DYToolsApplyPlaybackRateToController(vc, speed);
+            [stack addObjectsFromArray:vc.childViewControllers];
+        }
+    }
 }
 
 %end

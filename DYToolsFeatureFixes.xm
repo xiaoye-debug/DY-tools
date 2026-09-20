@@ -135,18 +135,58 @@ static BOOL DYToolsLooksLikeCollectionBarView(UIView *view) {
 static void DYToolsHideVideoCollectionBarsInView(UIView *root) {
     if (!root || !root.window || !DYToolsHideVideoCollectionEnabled()) return;
 
+    CGFloat screenW = CGRectGetWidth(root.bounds);
+    CGFloat screenH = CGRectGetHeight(root.bounds);
+
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
     while (queue.count) {
         UIView *view = queue.firstObject;
         [queue removeObjectAtIndex:0];
 
         BOOL hide = DYToolsLooksLikeCollectionBarView(view);
+
         if ([view isKindOfClass:UILabel.class]) {
             UILabel *label = (UILabel *)view;
             NSString *text = [label.text stringByTrimmingCharactersInSet:
                               [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-            if ([text isEqualToString:@"合集"] || [text containsString:@"合集"]) {
+
+            BOOL collectionText =
+                [text isEqualToString:@"合集"] ||
+                [text containsString:@"合集"] ||
+                [text isEqualToString:@"下一集"] ||
+                [text containsString:@"下一集"] ||
+                [text hasPrefix:@"第"] && [text containsString:@"集"];
+
+            if (collectionText) {
                 hide = YES;
+
+                // 关键：不只隐藏文字，而是向上找到“合集控制条”本身。
+                // 截图中的整条半透明横栏包含“合集图标 + 下一集”按钮，
+                // 所以必须隐藏它的父容器。
+                UIView *candidate = label;
+                for (NSUInteger level = 0; level < 5; level++) {
+                    UIView *parent = candidate.superview;
+                    if (!parent) break;
+
+                    CGRect rect = [parent convertRect:parent.bounds toView:root];
+                    CGFloat w = CGRectGetWidth(rect);
+                    CGFloat h = CGRectGetHeight(rect);
+
+                    if (w >= screenW * 0.65 &&
+                        h >= 35.0 &&
+                        h <= MIN(150.0, screenH * 0.16) &&
+                        CGRectGetMidY(rect) > screenH * 0.70) {
+                        candidate = parent;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (candidate != label) {
+                    candidate.hidden = YES;
+                    candidate.alpha = 0.0;
+                    candidate.userInteractionEnabled = NO;
+                }
             }
         }
 
@@ -356,6 +396,17 @@ static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
         if ([text isEqualToString:word]) return YES;
     }
 
+    // 40.x 部分频道文字没有稳定的 TopBar 类名，但一定位于屏幕顶部。
+    if (label.window) {
+        CGRect screenRect = [label convertRect:label.bounds toView:label.window];
+        CGFloat screenH = CGRectGetHeight(label.window.bounds);
+        if (screenH > 0 &&
+            CGRectGetMidY(screenRect) < screenH * 0.22 &&
+            CGRectGetMinX(screenRect) > screenH * 0.0) {
+            return YES;
+        }
+    }
+
     // 抖音 40.x 顶部频道文字经常挂在 UIButton / UIControl 内，
     // 不一定存在 TabBar/TopBar 类名，因此同时判断按钮/控件层级。
     if ([label.superview isKindOfClass:UIControl.class] ||
@@ -396,9 +447,12 @@ static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) 
 
     if (w <= 0 || h <= 0) return NO;
 
-    // 视频页名字、文案通常位于视频画面的左下区域。
-    if (CGRectGetMinX(r) <= w * 0.78 &&
-        CGRectGetMidY(r) >= h * 0.38) {
+    // 只处理视频页左下的信息区，排除底部导航、右侧按钮等其它文字。
+    // 40.x 常见布局：作者/文案/IP 属地大约在屏幕下方 72%~93%。
+    CGFloat midY = CGRectGetMidY(r);
+    if (CGRectGetMinX(r) <= w * 0.82 &&
+        midY >= h * 0.72 &&
+        midY <= h * 0.93) {
         return YES;
     }
 
@@ -434,6 +488,8 @@ static void DYToolsRemoveTextGradient(UILabel *label) {
 
 static void DYToolsApplyRealtimeTextGradient(UILabel *label) {
     if (!label || !label.text.length) return;
+
+    [label layoutIfNeeded];
 
     CAGradientLayer *gradient =
         objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey);
@@ -573,9 +629,17 @@ static void DYToolsScanRealtimeGradientPages(void) {
                 UIViewController *current = controllers.firstObject;
                 [controllers removeObjectAtIndex:0];
 
-                // 40.x 不同视频页面使用的 VC 类名并不固定。
-                // 直接扫描当前窗口中的文字控件，由位置/文字特征筛选视频文案。
-                DYToolsScanGradientLabelsInView(current.view, NO);
+                NSString *name = NSStringFromClass(current.class);
+                BOOL isVideoPage =
+                    [name containsString:@"AWEPlayInteraction"] ||
+                    [name containsString:@"AwemeDetail"] ||
+                    [name containsString:@"PlayerViewController"] ||
+                    [name containsString:@"AWEAwemeDetail"] ||
+                    [name containsString:@"AwemePlay"];
+
+                if (isVideoPage) {
+                    DYToolsScanGradientLabelsInView(current.view, NO);
+                }
 
                 [controllers addObjectsFromArray:current.childViewControllers];
 

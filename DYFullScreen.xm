@@ -1952,6 +1952,398 @@ static void DYFSSyncKnowledgeGradient(UIView *gradient) {
 
 %end
 
+
+#pragma mark - DYYY recommendation filters / cast VPN / pure mode migration
+
+// 1. 投屏忽略 VPN 检测
+@interface BDByteCastUtils : NSObject
++ (BOOL)netVPNStatus;
+@end
+
+@interface BDByteCastNetUtilities : NSObject
+- (BOOL)getVPNStatus;
+@end
+
+@interface BDByteCastMonitorManager : NSObject
+- (BOOL)netVPNStatus;
+- (void)setNetVPNStatus:(BOOL)value;
+@end
+
+@interface BDByteCastEnvInfo : NSObject
+- (BOOL)isVPNActive;
+- (void)setIsVPNActive:(BOOL)value;
+@end
+
+@interface BDByteScreenCastContext : NSObject
+- (BOOL)isVPNActive;
+- (void)setIsVPNActive:(BOOL)value;
+@end
+
+%hook BDByteCastUtils
++ (BOOL)netVPNStatus {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+%end
+
+%hook BDByteCastNetUtilities
+- (BOOL)getVPNStatus {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+%end
+
+%hook BDByteCastMonitorManager
+- (BOOL)netVPNStatus {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+- (void)setNetVPNStatus:(BOOL)value {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) {
+        %orig(NO);
+        return;
+    }
+    %orig(value);
+}
+%end
+
+%hook BDByteCastEnvInfo
+- (BOOL)isVPNActive {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+- (void)setIsVPNActive:(BOOL)value {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) {
+        %orig(NO);
+        return;
+    }
+    %orig(value);
+}
+%end
+
+%hook BDByteScreenCastContext
+- (BOOL)isVPNActive {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) return NO;
+    return %orig;
+}
+- (void)setIsVPNActive:(BOOL)value {
+    if (DYToolsFeatureBool(@"DYYYDisableCastVPNCheck")) {
+        %orig(NO);
+        return;
+    }
+    %orig(value);
+}
+%end
+
+
+// 2. 推荐流过滤
+//
+// DYYY 的实际过滤入口是在 AWEHotListDataController
+// -transferAwemeListIfNeededWithArray:isInitFetch:。
+// 这里使用 KVC 读取字段，避免依赖 40.4.0 私有头文件。
+
+@interface AWEHotListDataController : NSObject
+@end
+
+static NSNumber *DYToolsNumberValue(id rawValue) {
+    if (!rawValue || rawValue == [NSNull null]) return nil;
+
+    if ([rawValue isKindOfClass:NSNumber.class]) {
+        return rawValue;
+    }
+
+    if ([rawValue isKindOfClass:NSString.class]) {
+        NSString *s = [(NSString *)rawValue stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (s.length == 0) return nil;
+
+        NSScanner *scanner = [NSScanner scannerWithString:s];
+        long long iv = 0;
+        if ([scanner scanLongLong:&iv] && scanner.isAtEnd) {
+            return @(iv);
+        }
+
+        scanner = [NSScanner scannerWithString:s];
+        double dv = 0.0;
+        if ([scanner scanDouble:&dv] && scanner.isAtEnd) {
+            return @((long long)llround(dv));
+        }
+    }
+
+    return nil;
+}
+
+static id DYToolsKVC(id obj, NSString *keyPath) {
+    if (!obj || keyPath.length == 0) return nil;
+    @try {
+        return [obj valueForKeyPath:keyPath];
+    } @catch (__unused NSException *exception) {
+        return nil;
+    }
+}
+
+static BOOL DYToolsIsRecommendAweme(id model) {
+    NSString *refer = DYToolsKVC(model, @"referString");
+    return [refer isKindOfClass:NSString.class] &&
+           [refer isEqualToString:@"homepage_hot"];
+}
+
+static BOOL DYToolsIsHDRAweme(id model) {
+    if (!model || !DYToolsFeatureBool(@"DYYYFilterFeedHDR")) return NO;
+
+    id video = DYToolsKVC(model, @"video");
+    id bitrateModels = DYToolsKVC(video, @"bitrateModels");
+    if (![bitrateModels respondsToSelector:@selector(count)]) return NO;
+
+    for (id bitrate in bitrateModels) {
+        NSNumber *hdrType = DYToolsKVC(bitrate, @"hdrType");
+        NSNumber *hdrBit = DYToolsKVC(bitrate, @"hdrBit");
+        if ([hdrType respondsToSelector:@selector(integerValue)] &&
+            [hdrBit respondsToSelector:@selector(integerValue)] &&
+            hdrType.integerValue == 1 &&
+            hdrBit.integerValue == 10) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static NSNumber *DYToolsResolvedDiggCount(id model) {
+    static NSArray<NSString *> *paths;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        paths = @[
+            @"statistics.diggCount",
+            @"statistics.digg_count",
+            @"diggCount",
+            @"digg_count",
+            @"feedSequenceExtendFeature.digg_count",
+            @"feedSequenceExtendFeature.diggCount",
+            @"recommendFeedExtendFeature.digg_count",
+            @"recommendFeedExtendFeature.diggCount"
+        ];
+    });
+
+    for (NSString *path in paths) {
+        NSNumber *number = DYToolsNumberValue(DYToolsKVC(model, path));
+        if (number) return number;
+    }
+    return nil;
+}
+
+static BOOL DYToolsShouldFilterRecommendAweme(id model,
+                                              NSInteger daysThreshold,
+                                              NSInteger minLikesThreshold,
+                                              BOOL skipLive,
+                                              BOOL skipHotSpot) {
+    if (!model) return NO;
+
+    // 广告不由这里过滤，保持 DYYY 的白名单逻辑。
+    if ([DYToolsKVC(model, @"isAds") boolValue]) return NO;
+
+    if (skipLive && DYToolsKVC(model, @"cellRoom") != nil) {
+        return YES;
+    }
+
+    if (skipHotSpot && DYToolsKVC(model, @"hotSpotLynxCardModel") != nil) {
+        return YES;
+    }
+
+    // 视频时限仅针对推荐流。
+    if (daysThreshold > 0 && DYToolsIsRecommendAweme(model)) {
+        NSNumber *createTime = DYToolsKVC(model, @"createTime");
+        if ([createTime respondsToSelector:@selector(doubleValue)]) {
+            NSTimeInterval ts = createTime.doubleValue;
+            if (ts > 1e12) ts /= 1000.0;
+            if (ts > 0) {
+                NSTimeInterval limit = MAX(daysThreshold, 0) * 86400.0;
+                if ([[NSDate date] timeIntervalSince1970] - ts > limit) {
+                    return YES;
+                }
+            }
+        }
+    }
+
+    // HDR 过滤只作用于推荐流。
+    if (DYToolsIsRecommendAweme(model) && DYToolsIsHDRAweme(model)) {
+        return YES;
+    }
+
+    // 低赞过滤：填 0 关闭；字段无法解析时放行，避免误杀。
+    if (minLikesThreshold > 0 && DYToolsIsRecommendAweme(model)) {
+        NSNumber *digg = DYToolsResolvedDiggCount(model);
+        if (digg && digg.integerValue > 0 &&
+            digg.integerValue < minLikesThreshold) {
+            return YES;
+        }
+    }
+
+    return NO;
+}
+
+%hook AWEHotListDataController
+
+- (id)transferAwemeListIfNeededWithArray:(id)arg1 isInitFetch:(BOOL)arg2 {
+    id original = %orig(arg1, arg2);
+    if (![original isKindOfClass:NSArray.class] || [original count] == 0) {
+        return original;
+    }
+
+    BOOL skipLive = DYToolsFeatureBool(@"DYYYSkipLive");
+    BOOL skipHotSpot = DYToolsFeatureBool(@"DYYYSkipHotSpot");
+    NSInteger daysThreshold = [DYToolsFeatureBool(@"DYYYFilterTimeLimit")
+                               ? DYToolsKVC([NSUserDefaults standardUserDefaults], @"DYYYFilterTimeLimit") : @0 integerValue];
+    NSInteger minLikesThreshold = [DYToolsFeatureBool(@"DYYYFilterLowLikes")
+                                   ? DYToolsKVC([NSUserDefaults standardUserDefaults], @"DYYYFilterLowLikes") : @0 integerValue];
+
+    // 上面两个文本设置不能用 bool 判断是否存在，否则填 0 时会被误认为未开启；
+    // 直接读取原始值重新解析。
+    id daysRaw = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYFilterTimeLimit"];
+    id likesRaw = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYFilterLowLikes"];
+    NSNumber *daysNumber = DYToolsNumberValue(daysRaw);
+    NSNumber *likesNumber = DYToolsNumberValue(likesRaw);
+    daysThreshold = daysNumber ? daysNumber.integerValue : 0;
+    minLikesThreshold = likesNumber ? likesNumber.integerValue : 0;
+
+    if (!skipLive && !skipHotSpot && daysThreshold <= 0 &&
+        minLikesThreshold <= 0 && !DYToolsFeatureBool(@"DYYYFilterFeedHDR")) {
+        return original;
+    }
+
+    NSMutableArray *filtered = [NSMutableArray arrayWithCapacity:[original count]];
+    NSInteger removed = 0;
+
+    for (id obj in original) {
+        if (!DYToolsShouldFilterRecommendAweme(obj,
+                                               daysThreshold,
+                                               minLikesThreshold,
+                                               skipLive,
+                                               skipHotSpot)) {
+            [filtered addObject:obj];
+        } else {
+            removed++;
+        }
+    }
+
+    if (removed > 0) {
+        NSLog(@"[DYTools] 推荐过滤: total=%lu removed=%ld live=%d hotspot=%d days=%ld likes=%ld hdr=%d",
+              (unsigned long)[original count],
+              (long)removed,
+              skipLive,
+              skipHotSpot,
+              (long)daysThreshold,
+              (long)minLikesThreshold,
+              DYToolsFeatureBool(@"DYYYFilterFeedHDR"));
+    }
+
+    // 防止异常字段导致整批推荐被误清空。
+    if ([original count] >= 3 && filtered.count == 0) {
+        NSLog(@"[DYTools] 推荐过滤结果为空，回退原列表");
+        return original;
+    }
+
+    return [filtered copy];
+}
+
+%end
+
+
+// 3. 首页净化
+//
+// DYYY 的实际实现会在首页元素栈 setAlpha 时把元素隐藏，
+// 同时将 AWEFeedTableViewController 的 pureMode 置为 YES。
+// 这里不用 AWMSafeDispatchTimer，改用 GCD 重试，减少对 DYYY 私有辅助类的依赖。
+
+@interface AWEElementStackView : UIView
+@end
+
+static BOOL gDYToolsPureModeAttempting = NO;
+static BOOL gDYToolsPureModeApplied = NO;
+
+static void DYToolsTryEnablePureMode(void) {
+    if (!DYToolsFeatureBool(@"DYYYEnablePure")) {
+        gDYToolsPureModeApplied = NO;
+        gDYToolsPureModeAttempting = NO;
+        return;
+    }
+
+    if (gDYToolsPureModeApplied || gDYToolsPureModeAttempting) return;
+
+    gDYToolsPureModeAttempting = YES;
+
+    __block NSInteger attempt = 0;
+    void (^retry)(void) = ^{
+        if (!DYToolsFeatureBool(@"DYYYEnablePure")) {
+            gDYToolsPureModeAttempting = NO;
+            gDYToolsPureModeApplied = NO;
+            return;
+        }
+
+        UIWindow *window = DYFSActiveWindow();
+        UIViewController *root = window.rootViewController;
+        Class feedClass = NSClassFromString(@"AWEFeedTableViewController");
+        UIViewController *feedVC = nil;
+
+        if (feedClass && root) {
+            NSMutableArray *queue = [NSMutableArray arrayWithObject:root];
+            while (queue.count && !feedVC) {
+                UIViewController *vc = queue.firstObject;
+                [queue removeObjectAtIndex:0];
+
+                if ([vc isKindOfClass:feedClass]) {
+                    feedVC = vc;
+                    break;
+                }
+
+                for (UIViewController *child in vc.childViewControllers) {
+                    if (child) [queue addObject:child];
+                }
+
+                if (vc.presentedViewController) {
+                    [queue addObject:vc.presentedViewController];
+                }
+            }
+        }
+
+        if (feedVC) {
+            @try {
+                [feedVC setValue:@YES forKey:@"pureMode"];
+                gDYToolsPureModeApplied = YES;
+                gDYToolsPureModeAttempting = NO;
+                NSLog(@"[DYTools] 首页净化 pureMode=YES");
+                return;
+            } @catch (NSException *e) {
+                NSLog(@"[DYTools] 首页净化设置 pureMode 失败: %@", e);
+            }
+        }
+
+        attempt++;
+        if (attempt >= 10) {
+            gDYToolsPureModeAttempting = NO;
+            return;
+        }
+
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), retry);
+    };
+
+    dispatch_async(dispatch_get_main_queue(), retry);
+}
+
+%hook AWEElementStackView
+
+- (void)setAlpha:(CGFloat)alpha {
+    if (DYToolsFeatureBool(@"DYYYEnablePure")) {
+        %orig(0.0);
+        DYToolsTryEnablePureMode();
+        return;
+    }
+
+    %orig(alpha);
+}
+
+%end
+
 %ctor {
     gDYFSRichManagedViews = [NSHashTable weakObjectsHashTable];
     DYFSRegisterRestore(DYFSRestoreRichManaged);

@@ -554,7 +554,7 @@ static float DYToolsCurrentLongPressSpeed(void) {
 }
 
 static NSArray<NSNumber *> *DYToolsSpeedOptions(void) {
-    return @[@0.75, @1.0, @1.25, @1.5, @2.0, @2.5, @3.0];
+    return @[@1.0, @1.25, @1.5, @2.0];
 }
 
 static NSInteger DYToolsCurrentSpeedIndex(void) {

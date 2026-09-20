@@ -2191,13 +2191,8 @@ static BOOL DYToolsShouldFilterRecommendAweme(id model,
 
     BOOL skipLive = DYToolsFeatureBool(@"DYYYSkipLive");
     BOOL skipHotSpot = DYToolsFeatureBool(@"DYYYSkipHotSpot");
-    NSInteger daysThreshold = [DYToolsFeatureBool(@"DYYYFilterTimeLimit")
-                               ? DYToolsKVC([NSUserDefaults standardUserDefaults], @"DYYYFilterTimeLimit") : @0 integerValue];
-    NSInteger minLikesThreshold = [DYToolsFeatureBool(@"DYYYFilterLowLikes")
-                                   ? DYToolsKVC([NSUserDefaults standardUserDefaults], @"DYYYFilterLowLikes") : @0 integerValue];
 
-    // 上面两个文本设置不能用 bool 判断是否存在，否则填 0 时会被误认为未开启；
-    // 直接读取原始值重新解析。
+    // 文本设置直接读取原始值并解析；填 0 即关闭。
     id daysRaw = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYFilterTimeLimit"];
     id likesRaw = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYFilterLowLikes"];
     NSNumber *daysNumber = DYToolsNumberValue(daysRaw);
@@ -2272,7 +2267,8 @@ static void DYToolsTryEnablePureMode(void) {
     gDYToolsPureModeAttempting = YES;
 
     __block NSInteger attempt = 0;
-    void (^retry)(void) = ^{
+    __block void (^retry)(void);
+    retry = ^{
         if (!DYToolsFeatureBool(@"DYYYEnablePure")) {
             gDYToolsPureModeAttempting = NO;
             gDYToolsPureModeApplied = NO;

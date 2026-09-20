@@ -545,74 +545,6 @@ static void DYToolsApplyLabelColor(UILabel *label, NSString *hex) {
     if (color) label.textColor = color;
 }
 
-static float DYToolsCurrentDefaultSpeed(void) {
-    return (float)DYToolsFeatureFloat(@"DYYYDefaultSpeed", 1.0);
-}
-
-static float DYToolsCurrentLongPressSpeed(void) {
-    return (float)DYToolsFeatureFloat(@"DYYYLongPressSpeed", 2.0);
-}
-
-static NSArray<NSNumber *> *DYToolsSpeedOptions(void) {
-    NSString *config = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYSpeedSettings"];
-    if (config.length > 0) {
-        NSMutableArray<NSNumber *> *result = [NSMutableArray array];
-        for (NSString *part in [config componentsSeparatedByString:@","]) {
-            CGFloat value = part.floatValue;
-            if (value > 0.0) [result addObject:@(value)];
-        }
-        if (result.count > 0) return result;
-    }
-    return @[@1.0, @1.25, @1.5, @2.0];
-}
-
-static NSInteger DYToolsCurrentSpeedIndex(void) {
-    NSInteger index = [[NSUserDefaults standardUserDefaults] integerForKey:@"DYToolsCurrentSpeedIndex"];
-    NSArray *options = DYToolsSpeedOptions();
-    if (index < 0 || index >= (NSInteger)options.count) index = 0;
-    return index;
-}
-
-static float DYToolsCurrentCycleSpeed(void) {
-    return [DYToolsSpeedOptions()[DYToolsCurrentSpeedIndex()] floatValue];
-}
-
-static void DYToolsSetCycleSpeedIndex(NSInteger index) {
-    NSArray *options = DYToolsSpeedOptions();
-    if (options.count == 0) return;
-    index = (index % (NSInteger)options.count + (NSInteger)options.count) % (NSInteger)options.count;
-    [[NSUserDefaults standardUserDefaults] setInteger:index forKey:@"DYToolsCurrentSpeedIndex"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
-}
-
-static void DYToolsApplyPlaybackRateToController(id controller, float rate) {
-    if (!controller || rate <= 0.0) return;
-    SEL sel = NSSelectorFromString(@"setVideoControllerPlaybackRate:");
-    if (![controller respondsToSelector:sel]) return;
-    @try {
-        void (*msg)(id, SEL, float) = (void (*)(id, SEL, float))objc_msgSend;
-        msg(controller, sel, rate);
-    } @catch (__unused NSException *e) {
-    }
-}
-
-static void DYToolsApplyDefaultSpeedIfNeeded(id controller) {
-    if (!controller) return;
-    float speed = DYToolsCurrentDefaultSpeed();
-    if (speed > 0.0 && fabsf(speed - 1.0f) > 0.001f) {
-        DYToolsApplyPlaybackRateToController(controller, speed);
-    }
-}
-
-static void DYToolsApplyCurrentCycleSpeed(id controller) {
-    float speed = DYToolsCurrentCycleSpeed();
-    if (speed > 0.0 && fabsf(speed - 1.0f) > 0.001f) {
-        DYToolsApplyPlaybackRateToController(controller, speed);
-    } else if (speed > 0.0) {
-        DYToolsApplyPlaybackRateToController(controller, speed);
-    }
-}
-
 #pragma mark - Progress time / position / color
 
 @interface AWEFeedProgressSlider : UIView
@@ -839,115 +771,6 @@ static void DYToolsApplyCurrentCycleSpeed(id controller) {
 }
 %end
 
-#pragma mark - Speed controller / default speed / long-press speed
-
-@interface AWEPlayInteractionSpeedController : NSObject
-- (void)changeSpeed:(double)speed;
-- (CGFloat)longPressFastSpeedValue;
-- (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture;
-@end
-
-%hook AWEPlayInteractionSpeedController
-static BOOL dyToolsHasChangedSpeed = NO;
-static CGFloat dyToolsCurrentLongPressSpeed = 0;
-static BOOL dyToolsGestureActive = NO;
-
-- (CGFloat)longPressFastSpeedValue {
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYLongPressSpeed"] != nil) {
-        CGFloat configured = DYToolsCurrentLongPressSpeed();
-        return configured > 0.0 ? configured : 2.0;
-    }
-    return %orig;
-}
-
-- (void)changeSpeed:(double)speed {
-    CGFloat configured = DYToolsCurrentLongPressSpeed();
-
-    if (dyToolsGestureActive && dyToolsCurrentLongPressSpeed > 0.0) {
-        %orig(dyToolsCurrentLongPressSpeed);
-        return;
-    }
-
-    if (fabs(speed - 2.0) < 0.001 && [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYLongPressSpeed"] != nil) {
-        if (!dyToolsHasChangedSpeed) {
-            if (configured > 0.0 && fabs(configured - 2.0) > 0.001) {
-                dyToolsHasChangedSpeed = YES;
-                %orig(configured);
-                return;
-            }
-        } else {
-            dyToolsHasChangedSpeed = NO;
-            %orig(1.0);
-            return;
-        }
-    }
-
-    %orig(speed);
-}
-
-- (void)handleLongPressFastSpeed:(UILongPressGestureRecognizer *)gesture {
-    %orig;
-
-    if (!DYToolsFeatureBool(@"DYYYEnableLongPressSpeedGesture")) return;
-
-    CGPoint location = [gesture locationInView:gesture.view];
-
-    if (gesture.state == UIGestureRecognizerStateBegan) {
-        dyToolsCurrentLongPressSpeed = DYToolsCurrentLongPressSpeed();
-        if (dyToolsCurrentLongPressSpeed <= 0.0) dyToolsCurrentLongPressSpeed = 2.0;
-        dyToolsGestureActive = YES;
-        objc_setAssociatedObject(self, @selector(handleLongPressFastSpeed:),
-                                 @(location.y), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    } else if (gesture.state == UIGestureRecognizerStateChanged && dyToolsGestureActive) {
-        CGFloat lastY = [objc_getAssociatedObject(self, @selector(handleLongPressFastSpeed:)) doubleValue];
-        CGFloat deltaY = location.y - lastY;
-
-        if (fabs(deltaY) > 10.0) {
-            CGFloat next = dyToolsCurrentLongPressSpeed + (deltaY > 0 ? 0.25 : -0.25);
-            next = MAX(0.5, MIN(3.0, next));
-            if (fabs(next - dyToolsCurrentLongPressSpeed) > 0.001) {
-                dyToolsCurrentLongPressSpeed = next;
-                objc_setAssociatedObject(self, @selector(handleLongPressFastSpeed:),
-                                         @(location.y), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-                [self changeSpeed:next];
-            }
-        }
-    } else if (gesture.state == UIGestureRecognizerStateEnded ||
-               gesture.state == UIGestureRecognizerStateCancelled) {
-        dyToolsGestureActive = NO;
-        dyToolsCurrentLongPressSpeed = 0.0;
-        objc_setAssociatedObject(self, @selector(handleLongPressFastSpeed:),
-                                 nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-}
-%end
-
-#pragma mark - Default speed / restore speed
-
-@interface AWEAwemePlayVideoViewController : UIViewController
-- (void)setVideoControllerPlaybackRate:(float)rate;
-- (void)prepareForDisplay;
-@end
-
-%hook AWEAwemePlayVideoViewController
-- (void)setIsAutoPlay:(BOOL)value {
-    %orig(value);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] == nil) return;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        DYToolsApplyDefaultSpeedIfNeeded(self);
-        if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-    });
-}
-- (void)prepareForDisplay {
-    %orig;
-    if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
-        DYToolsApplyDefaultSpeedIfNeeded(self);
-        DYToolsApplyCurrentCycleSpeed(self);
-    }
-}
-%end
-
 #pragma mark - Custom speed action for existing interaction controller
 
 %hook AWEPlayInteractionViewController
@@ -978,29 +801,7 @@ static BOOL dyToolsGestureActive = NO;
 
 %end
 
-@interface AWEDPlayerFeedPlayerViewController : UIViewController
-@property(nonatomic,strong) UIView *contentView;
-- (void)setVideoControllerPlaybackRate:(float)rate;
-@end
-
-%hook AWEDPlayerFeedPlayerViewController
-- (void)viewDidLayoutSubviews {
-    // Keep Douyin's original contentView geometry.
-    // Expanding this view to the stretched feed height pushes the title/caption down.
-    %orig;
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
-}
-
-- (void)setIsAutoPlay:(BOOL)value {
-    %orig(value);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) {
-        DYToolsApplyDefaultSpeedIfNeeded(self);
-    }
-}
-%end
-
 @interface AWEDPlayerViewController_Merge : UIViewController
-- (void)setVideoControllerPlaybackRate:(float)rate;
 @property(nonatomic,strong) UIView *contentView;
 @end
 
@@ -1532,18 +1333,6 @@ static CGRect DYFSAdjustHUDFrame(UIView *view, CGRect frame) {
     if (!CGRectIsNull(target)) view.frame = target;
 }
 
-- (void)setIsAutoPlay:(BOOL)value {
-    %orig(value);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) {
-        DYToolsApplyDefaultSpeedIfNeeded(self);
-    }
-}
-
-- (void)prepareForDisplay {
-    %orig;
-    if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
-}
 
 - (void)viewDidLayoutSubviews {
     %orig;
@@ -3611,11 +3400,7 @@ static UIViewController *DYToolsTopViewController(void) {
         @[@"视频背景颜色",@"DYYYVideoBGColor",@"视频背景 背景颜色"],
         @[@"启用弹幕改色",@"DYYYEnableDanmuColor",@"弹幕 弹幕颜色 改色"],
         @[@"自定弹幕颜色",@"DYYYDanmuColor",@"弹幕 自定义颜色"],
-        @[@"设置默认倍速",@"DYYYDefaultSpeed",@"倍速 默认速度 播放速度"],
-        @[@"设置长按倍速",@"DYYYLongPressSpeed",@"倍速 长按速度"],
-        @[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture",@"倍速 上下控制"],
-        @[@"自动恢复默认倍速",@"DYYYAutoRestoreSpeed",@"倍速 自动恢复"],
-        @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
+                                        @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
         @[@"进度时长样式",@"DYYYScheduleStyle",@"进度 样式"],
         @[@"进度纵轴位置",@"DYYYTimelineVerticalPosition",@"进度 位置"],
         @[@"进度标签颜色",@"DYYYProgressLabelColor",@"进度 标签 颜色"],
@@ -4065,9 +3850,9 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"视频背景颜色",@"key":@"DYYYVideoBGColor",@"type":@"text",@"placeholder":@"十六进制"},
         @{@"title":@"启用弹幕改色",@"key":@"DYYYEnableDanmuColor",@"type":@"switch"},
         @{@"title":@"自定弹幕颜色",@"key":@"DYYYDanmuColor",@"type":@"text",@"placeholder":@"十六进制"},
-        @{@"title":@"设置默认倍速",@"key":@"DYYYDefaultSpeed",@"type":@"picker"},@{@"title":@"设置长按倍速",@"key":@"DYYYLongPressSpeed",@"type":@"picker"},
-        @{@"title":@"上下控制倍速",@"key":@"DYYYEnableLongPressSpeedGesture",@"type":@"switch"},@{@"title":@"自动恢复默认倍速",@"key":@"DYYYAutoRestoreSpeed",@"type":@"switch"},@{@"title":@"快捷倍速悬浮按钮",@"key":@"DYYYEnableFloatSpeedButton",@"type":@"switch"},@{@"title":@"显示进度时长",@"key":@"DYYYShowScheduleDisplay",@"type":@"switch"},
-        @{@"title":@"进度时长样式",@"key":@"DYYYScheduleStyle",@"type":@"text",@"placeholder":@"默认"},@{@"title":@"进度纵轴位置",@"key":@"DYYYTimelineVerticalPosition",@"type":@"text",@"placeholder":@"-12.5"},
+        
+        @{@"title":@"显示进度时长",@"key":@"DYYYShowScheduleDisplay",@"type":@"switch"},
+        @{@"title":@"进度时长样式",@"key":@"DYYYScheduleStyle",@"type":@"picker"},@{@"title":@"进度纵轴位置",@"key":@"DYYYTimelineVerticalPosition",@"type":@"text",@"placeholder":@"-12.5"},
         @{@"title":@"进度标签颜色",@"key":@"DYYYProgressLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"隐藏视频进度",@"key":@"DYYYHideVideoProgress",@"type":@"switch"},
         @{@"title":@"启用自动播放",@"key":@"DYYYEnableAutoPlay",@"type":@"switch"},@{@"title":@"禁用双击视频点赞",@"key":@"DYYYDisableDoubleTapLike",@"type":@"switch"},@{@"title":@"禁用点击首页刷新",@"key":@"DYYYDisableHomeRefresh",@"type":@"switch"},@{@"title":@"忽略投屏 VPN 检测",@"key":@"DYYYDisableCastVPNCheck",@"type":@"switch"},
         @{@"title":@"推荐过滤直播",@"key":@"DYYYSkipLive",@"type":@"switch"},@{@"title":@"推荐过滤热点",@"key":@"DYYYSkipHotSpot",@"type":@"switch"},
@@ -4185,9 +3970,6 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
 }
 
 - (NSArray<NSString *> *)dy_pickerOptionsForKey:(NSString *)key {
-    if ([key isEqualToString:@"DYYYDefaultSpeed"] || [key isEqualToString:@"DYYYLongPressSpeed"]) {
-        return @[@"0.75x",@"1.0x",@"1.25x",@"1.5x",@"2.0x",@"2.5x",@"3.0x"];
-    }
     if ([key isEqualToString:@"DYYYScheduleStyle"]) {
         return @[@"进度条两侧上下",@"进度条左侧剩余",@"进度条左侧完整",@"进度条右侧剩余",@"进度条右侧完整"];
     }
@@ -4355,11 +4137,7 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @[@"视频背景颜色",@"DYYYVideoBGColor",@"视频背景 背景颜色"],
         @[@"启用弹幕改色",@"DYYYEnableDanmuColor",@"弹幕 弹幕颜色 改色"],
         @[@"自定弹幕颜色",@"DYYYDanmuColor",@"弹幕 自定义颜色"],
-        @[@"设置默认倍速",@"DYYYDefaultSpeed",@"倍速 默认速度 播放速度"],
-        @[@"设置长按倍速",@"DYYYLongPressSpeed",@"倍速 长按速度"],
-        @[@"上下控制倍速",@"DYYYEnableLongPressSpeedGesture",@"倍速 上下控制"],
-        @[@"自动恢复默认倍速",@"DYYYAutoRestoreSpeed",@"倍速 自动恢复"],
-        @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
+                                        @[@"显示进度时长",@"DYYYShowScheduleDisplay",@"进度 时长 进度条"],
         @[@"进度时长样式",@"DYYYScheduleStyle",@"进度 样式"],
         @[@"进度纵轴位置",@"DYYYTimelineVerticalPosition",@"进度 位置"],
         @[@"进度标签颜色",@"DYYYProgressLabelColor",@"进度 标签 颜色"],

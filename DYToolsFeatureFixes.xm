@@ -3,6 +3,19 @@
 #import <objc/runtime.h>
 #import <QuartzCore/QuartzCore.h>
 
+@interface DYToolsBasicSettingsViewController : UITableViewController
+@end
+
+@interface DYToolsControlViewController : UIViewController
+- (NSArray *)dy_buildGlobalSearchEntries;
+@end
+
+#pragma mark - DY-tools 40.4.0 feature fixes
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#import <objc/runtime.h>
+#import <QuartzCore/QuartzCore.h>
+
 #pragma mark - DY-tools 40.4.0 feature fixes
 //
 // 本文件只补强当前已经存在的设置项，不改全屏核心。

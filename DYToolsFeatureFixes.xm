@@ -717,6 +717,8 @@ static void DYFixRunScan(void) {
     %init(_ungrouped);
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        DYToolsStartRealtimeTextGradientScanner();
+
         if (gDYFixTimer) return;
 
         gDYFixTimer =

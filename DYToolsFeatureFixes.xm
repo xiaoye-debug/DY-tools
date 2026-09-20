@@ -98,6 +98,112 @@ static UIVisualEffectView *DYFixBlurView(UIView *container,
     return blur;
 }
 
+#pragma mark - 视频页合集栏去除
+
+static BOOL DYToolsHideVideoCollectionEnabled(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideVideoCollectionBar"];
+}
+
+static BOOL DYToolsIsVideoPageView(UIView *view) {
+    if (!view) return NO;
+    UIResponder *r = view;
+    for (NSUInteger i = 0; i < 30 && (r = [r nextResponder]); i++) {
+        NSString *name = NSStringFromClass(r.class);
+        if ([name containsString:@"AWEPlayInteraction"] ||
+            [name containsString:@"AwemeDetail"] ||
+            [name containsString:@"PlayerViewController"]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static BOOL DYToolsLooksLikeCollectionBarView(UIView *view) {
+    if (!view) return NO;
+    NSString *className = NSStringFromClass(view.class);
+    NSArray<NSString *> *classWords = @[
+        @"Mix", @"Collection", @"Playlist", @"Series", @"Chapter"
+    ];
+    for (NSString *word in classWords) {
+        if ([className localizedCaseInsensitiveContainsString:word]) return YES;
+    }
+    NSString *accessibility = view.accessibilityLabel ?: @"";
+    return [accessibility isEqualToString:@"合集"] ||
+           [accessibility containsString:@"合集"]; 
+}
+
+static void DYToolsHideVideoCollectionBarsInView(UIView *root) {
+    if (!root || !root.window || !DYToolsHideVideoCollectionEnabled()) return;
+
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+    while (queue.count) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        BOOL hide = DYToolsLooksLikeCollectionBarView(view);
+        if ([view isKindOfClass:UILabel.class]) {
+            UILabel *label = (UILabel *)view;
+            NSString *text = [label.text stringByTrimmingCharactersInSet:
+                              [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            if ([text isEqualToString:@"合集"] || [text containsString:@"合集"]) {
+                hide = YES;
+            }
+        }
+
+        if (hide) {
+            view.hidden = YES;
+            view.alpha = 0.0;
+            view.userInteractionEnabled = NO;
+            continue;
+        }
+
+        [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+static void DYToolsRestoreVideoCollectionBarsInView(UIView *root) {
+    if (!root) return;
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+    while (queue.count) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        if (view.hidden && view.alpha <= 0.001 && DYToolsLooksLikeCollectionBarView(view)) {
+            view.hidden = NO;
+            view.alpha = 1.0;
+            view.userInteractionEnabled = YES;
+        }
+        [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+static void DYToolsScanVideoCollectionBars(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState == UISceneActivationStateUnattached) continue;
+
+        for (UIWindow *window in windowScene.windows) {
+            if (window.hidden || window.alpha <= 0.01 || !window.rootViewController) continue;
+            if (DYToolsHideVideoCollectionEnabled()) {
+                NSMutableArray<UIViewController *> *controllers = [NSMutableArray arrayWithObject:window.rootViewController];
+                while (controllers.count) {
+                    UIViewController *vc = controllers.firstObject;
+                    [controllers removeObjectAtIndex:0];
+                    NSString *name = NSStringFromClass(vc.class);
+                    if ([name containsString:@"AWEPlayInteraction"] ||
+                        [name containsString:@"AwemeDetail"] ||
+                        [name containsString:@"PlayerViewController"]) {
+                        DYToolsHideVideoCollectionBarsInView(vc.view);
+                    }
+                    [controllers addObjectsFromArray:vc.childViewControllers];
+                    if (vc.presentedViewController) [controllers addObject:vc.presentedViewController];
+                }
+            }
+        }
+    }
+}
+
 #pragma mark - 实时彩色渐变文字：视频名字/文案/顶栏
 
 static const void *kDYToolsTextGradientLayerKey = &kDYToolsTextGradientLayerKey;
@@ -347,6 +453,15 @@ static void DYToolsRemoveAllRealtimeGradients(void) {
 }
 
 static NSTimer *gDYToolsRealtimeTextGradientTimer = nil;
+static NSTimer *gDYToolsVideoCollectionTimer = nil;
+
+static void DYToolsStartVideoCollectionScanner(void) {
+    if (gDYToolsVideoCollectionTimer) return;
+    gDYToolsVideoCollectionTimer = [NSTimer scheduledTimerWithTimeInterval:0.35 repeats:YES block:^(__unused NSTimer *timer) {
+        DYToolsScanVideoCollectionBars();
+    }];
+    [[NSRunLoop mainRunLoop] addTimer:gDYToolsVideoCollectionTimer forMode:NSRunLoopCommonModes];
+}
 
 static void DYToolsStartRealtimeTextGradientScanner(void) {
     if (gDYToolsRealtimeTextGradientTimer) return;
@@ -717,7 +832,7 @@ static void DYFixRunScan(void) {
     %init(_ungrouped);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        DYToolsStartRealtimeTextGradientScanner();
+        DYToolsStartRealtimeTextGradientScanner();\n        DYToolsStartVideoCollectionScanner();
 
         if (gDYFixTimer) return;
 

@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import "CityManager.h"
 
 #pragma mark - DYYY UIView class declarations
 

@@ -897,7 +897,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 
 %hook AWEPlayInteractionSpeedController
 - (CGFloat)longPressFastSpeedValue {
-    if (DYToolsFeatureBool(@"DYYYLongPressSpeed")) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYLongPressSpeed"] != nil) {
         return DYToolsCurrentLongPressSpeed();
     }
     return %orig;
@@ -949,7 +949,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 %hook AWEAwemePlayVideoViewController
 - (void)setIsAutoPlay:(BOOL)value {
     %orig(value);
-    if (!DYToolsFeatureBool(@"DYYYDefaultSpeed") && !DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) return;
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] == nil && !DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) return;
     dispatch_async(dispatch_get_main_queue(), ^{
         DYToolsApplyDefaultSpeedIfNeeded(self);
         if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
@@ -959,7 +959,7 @@ static void DYToolsInstallSpeedButton(id controller) {
 - (void)prepareForDisplay {
     %orig;
     if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-    if (DYToolsFeatureBool(@"DYYYDefaultSpeed") || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil || DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) {
         DYToolsApplyDefaultSpeedIfNeeded(self);
         DYToolsApplyCurrentCycleSpeed(self);
     }
@@ -1033,7 +1033,7 @@ static void DYToolsInstallSpeedButton(id controller) {
     // Expanding this view to the stretched feed height pushes the title/caption down.
     %orig;
     if (DYToolsFeatureBool(@"DYYYAutoRestoreSpeed")) DYToolsSetCycleSpeedIndex(0);
-    if (DYToolsFeatureBool(@"DYYYDefaultSpeed")) DYToolsApplyDefaultSpeedIfNeeded(self);
+    if ([[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDefaultSpeed"] != nil) DYToolsApplyDefaultSpeedIfNeeded(self);
     if (DYToolsFeatureBool(@"DYYYEnableFloatSpeedButton")) DYToolsApplyCurrentCycleSpeed(self);
 }
 

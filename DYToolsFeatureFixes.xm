@@ -219,7 +219,7 @@ static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
     NSArray<NSString *> *topBarWords = @[
         @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
         @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
-        @"首页", @"附近"
+        @"首页", @"附近", @"海安"
     ];
 
     NSString *text = [label.text stringByTrimmingCharactersInSet:
@@ -228,12 +228,21 @@ static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
         if ([text isEqualToString:word]) return YES;
     }
 
+    // 抖音 40.x 顶部频道文字经常挂在 UIButton / UIControl 内，
+    // 不一定存在 TabBar/TopBar 类名，因此同时判断按钮/控件层级。
+    if ([label.superview isKindOfClass:UIControl.class] ||
+        [label.superview.superview isKindOfClass:UIControl.class]) {
+        return YES;
+    }
+
     UIResponder *r = label;
-    for (NSUInteger i = 0; i < 10 && (r = [r nextResponder]); i++) {
+    for (NSUInteger i = 0; i < 15 && (r = [r nextResponder]); i++) {
         NSString *name = NSStringFromClass(r.class);
         if ([name containsString:@"TabBar"] ||
             [name containsString:@"TopTab"] ||
-            [name containsString:@"TopBar"]) {
+            [name containsString:@"TopBar"] ||
+            [name containsString:@"NavigationBar"] ||
+            [name containsString:@"Channel"]) {
             return YES;
         }
     }
@@ -260,8 +269,8 @@ static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) 
     if (w <= 0 || h <= 0) return NO;
 
     // 视频页名字、文案通常位于视频画面的左下区域。
-    if (CGRectGetMinX(r) <= w * 0.68 &&
-        CGRectGetMidY(r) >= h * 0.42) {
+    if (CGRectGetMinX(r) <= w * 0.78 &&
+        CGRectGetMidY(r) >= h * 0.38) {
         return YES;
     }
 
@@ -310,13 +319,14 @@ static void DYToolsApplyRealtimeTextGradient(UILabel *label) {
         gradient.name = @"DYToolsRealtimeTextGradient";
         gradient.startPoint = CGPointMake(0.0, 0.5);
         gradient.endPoint = CGPointMake(1.0, 0.5);
+        // 全部改成浅色/马卡龙渐变，避免原来的高饱和深色。
         gradient.colors = @[
-            (id)[UIColor colorWithRed:1.0 green:0.10 blue:0.55 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:0.55 blue:0.05 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.20 green:1.0 blue:0.75 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.15 green:0.45 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.75 green:0.15 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:0.10 blue:0.55 alpha:1.0].CGColor
+            (id)[UIColor colorWithRed:1.00 green:0.72 blue:0.84 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.00 green:0.84 blue:0.66 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.70 green:0.94 blue:0.82 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.70 green:0.84 blue:1.00 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.84 green:0.72 blue:1.00 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.00 green:0.72 blue:0.84 alpha:1.0].CGColor
         ];
         gradient.locations = @[@0.0, @0.20, @0.40, @0.60, @0.80, @1.0];
         gradient.masksToBounds = YES;
@@ -384,6 +394,31 @@ static void DYToolsScanGradientLabelsInView(UIView *root, BOOL topBarOnly) {
             }
         }
 
+        // 顶部频道在 40.x 里部分是 UIButton.titleLabel。
+        // 直接把渐变应用到 titleLabel，解决“顶栏没有效果”。
+        if (topBarOnly && [view isKindOfClass:UIButton.class]) {
+            UIButton *button = (UIButton *)view;
+            UILabel *titleLabel = button.titleLabel;
+            NSString *title = [button titleForState:UIControlStateNormal] ?: titleLabel.text;
+            if (title.length && titleLabel) {
+                BOOL knownTopWord = NO;
+                NSArray<NSString *> *words = @[
+                    @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
+                    @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
+                    @"首页", @"附近", @"海安"
+                ];
+                for (NSString *word in words) {
+                    if ([title isEqualToString:word]) {
+                        knownTopWord = YES;
+                        break;
+                    }
+                }
+                if (knownTopWord) {
+                    DYToolsApplyRealtimeTextGradient(titleLabel);
+                }
+            }
+        }
+
         [queue addObjectsFromArray:view.subviews];
     }
 }
@@ -410,12 +445,9 @@ static void DYToolsScanRealtimeGradientPages(void) {
                 UIViewController *current = controllers.firstObject;
                 [controllers removeObjectAtIndex:0];
 
-                NSString *name = NSStringFromClass(current.class);
-                if ([name containsString:@"AWEPlayInteraction"] ||
-                    [name containsString:@"AwemeDetail"] ||
-                    [name containsString:@"PlayerViewController"]) {
-                    DYToolsScanGradientLabelsInView(current.view, NO);
-                }
+                // 40.x 不同视频页面使用的 VC 类名并不固定。
+                // 直接扫描当前窗口中的文字控件，由位置/文字特征筛选视频文案。
+                DYToolsScanGradientLabelsInView(current.view, NO);
 
                 [controllers addObjectsFromArray:current.childViewControllers];
 

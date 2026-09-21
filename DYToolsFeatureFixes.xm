@@ -381,61 +381,80 @@ static BOOL DYToolsRealtimeTextGradientEnabled(void) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableRealtimeTextGradient"];
 }
 
-static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
-    if (!label.text.length) return NO;
+static BOOL DYToolsIsVideoController(UIViewController *vc) {
+    if (!vc) return NO;
+    NSString *name = NSStringFromClass(vc.class);
+    return [name containsString:@"AWEPlayInteraction"] ||
+           [name containsString:@"AwemeDetail"] ||
+           [name containsString:@"PlayerViewController"] ||
+           [name containsString:@"AWEAwemeDetail"] ||
+           [name containsString:@"AwemePlay"];
+}
 
-    NSArray<NSString *> *topBarWords = @[
-        @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
-        @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
-        @"首页", @"附近", @"海安"
-    ];
-
-    NSString *text = [label.text stringByTrimmingCharactersInSet:
-                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    for (NSString *word in topBarWords) {
-        if ([text isEqualToString:word]) return YES;
-    }
-
-    // 40.x 部分频道文字没有稳定的 TopBar 类名，但一定位于屏幕顶部。
-    if (label.window) {
-        CGRect screenRect = [label convertRect:label.bounds toView:label.window];
-        CGFloat screenH = CGRectGetHeight(label.window.bounds);
-        if (screenH > 0 &&
-            CGRectGetMidY(screenRect) < screenH * 0.22 &&
-            CGRectGetMinX(screenRect) > screenH * 0.0) {
-            return YES;
-        }
-    }
-
-    // 抖音 40.x 顶部频道文字经常挂在 UIButton / UIControl 内，
-    // 不一定存在 TabBar/TopBar 类名，因此同时判断按钮/控件层级。
-    if ([label.superview isKindOfClass:UIControl.class] ||
-        [label.superview.superview isKindOfClass:UIControl.class]) {
-        return YES;
-    }
-
-    UIResponder *r = label;
-    for (NSUInteger i = 0; i < 15 && (r = [r nextResponder]); i++) {
-        NSString *name = NSStringFromClass(r.class);
-        if ([name containsString:@"TabBar"] ||
-            [name containsString:@"TopTab"] ||
-            [name containsString:@"TopBar"] ||
-            [name containsString:@"NavigationBar"] ||
-            [name containsString:@"Channel"]) {
+static BOOL DYToolsViewBelongsToVideoPage(UIView *view) {
+    if (!view) return NO;
+    UIResponder *r = view;
+    for (NSUInteger i = 0; i < 45 && (r = [r nextResponder]); i++) {
+        if ([r isKindOfClass:UIViewController.class] &&
+            DYToolsIsVideoController((UIViewController *)r)) {
             return YES;
         }
     }
     return NO;
 }
 
-static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) {
-    if (!label.text.length || !root) return NO;
+static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
+    if (!label.text.length || !label.window) return NO;
 
     NSString *text = [label.text stringByTrimmingCharactersInSet:
                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (!text.length) return NO;
+    if (!text.length || text.length > 12) return NO;
 
-    // 排除纯数字、时间、进度等辅助文字。
+    // 只认抖音顶部频道文字，不再把“任意顶部 UI 控件”当成顶栏。
+    NSArray<NSString *> *topBarWords = @[
+        @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
+        @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
+        @"首页", @"附近", @"海安"
+    ];
+
+    for (NSString *word in topBarWords) {
+        if ([text isEqualToString:word]) return YES;
+    }
+
+    // 动态频道名称只允许出现在真正的屏幕顶部区域。
+    CGRect r = [label convertRect:label.bounds toView:label.window];
+    CGFloat h = CGRectGetHeight(label.window.bounds);
+    CGFloat w = CGRectGetWidth(label.window.bounds);
+    if (h <= 0 || w <= 0) return NO;
+
+    CGFloat midY = CGRectGetMidY(r);
+    CGFloat midX = CGRectGetMidX(r);
+
+    return midY >= 0.045 * h &&
+           midY <= 0.19 * h &&
+           midX >= 0.12 * w &&
+           midX <= 0.88 * w &&
+           CGRectGetHeight(r) <= 45.0;
+}
+
+static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) {
+    if (!label.text.length || !root || !DYToolsViewBelongsToVideoPage(label)) return NO;
+
+    NSString *text = [label.text stringByTrimmingCharactersInSet:
+                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (!text.length || text.length > 220) return NO;
+
+    // 过滤明显不是作者/文案的控件文字。
+    NSArray<NSString *> *excluded = @[
+        @"赞", @"评论", @"分享", @"转发", @"收藏", @"更多",
+        @"不感兴趣", @"下一集", @"合集", @"关注", @"直播",
+        @"推荐", @"朋友", @"热点", @"同城", @"精选"
+    ];
+    for (NSString *word in excluded) {
+        if ([text isEqualToString:word]) return NO;
+    }
+
+    // 排除纯数字、时间、进度和 IP 属地标签。
     NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
     if ([text rangeOfCharacterFromSet:nonDigits].location == NSNotFound) return NO;
     if ([text rangeOfString:@"IP属地"].location != NSNotFound) return NO;
@@ -444,29 +463,18 @@ static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) 
     CGRect r = [label convertRect:label.bounds toView:root];
     CGFloat w = CGRectGetWidth(root.bounds);
     CGFloat h = CGRectGetHeight(root.bounds);
+    CGFloat x = CGRectGetMinX(r);
+    CGFloat midY = CGRectGetMidY(r);
 
     if (w <= 0 || h <= 0) return NO;
 
-    // 只处理视频页左下的信息区，排除底部导航、右侧按钮等其它文字。
-    // 40.x 常见布局：作者/文案/IP 属地大约在屏幕下方 72%~93%。
-    CGFloat midY = CGRectGetMidY(r);
-    if (CGRectGetMinX(r) <= w * 0.82 &&
-        midY >= h * 0.72 &&
-        midY <= h * 0.93) {
-        return YES;
-    }
+    // 只锁定视频左下作者/文案区域。
+    // 右侧点赞/评论/分享、底部导航、合集栏全部排除。
+    if (x < 0 || x > w * 0.70) return NO;
+    if (midY < h * 0.69 || midY > h * 0.88) return NO;
+    if (CGRectGetHeight(r) > 65.0) return NO;
 
-    NSString *className = NSStringFromClass(label.class);
-    if ([className containsString:@"Title"] ||
-        [className containsString:@"Caption"] ||
-        [className containsString:@"Desc"] ||
-        [className containsString:@"Author"] ||
-        [className containsString:@"UserName"] ||
-        [className containsString:@"Nick"]) {
-        return YES;
-    }
-
-    return NO;
+    return YES;
 }
 
 static void DYToolsRemoveTextGradient(UILabel *label) {
@@ -503,14 +511,15 @@ static void DYToolsApplyRealtimeTextGradient(UILabel *label) {
         gradient.name = @"DYToolsRealtimeTextGradient";
         gradient.startPoint = CGPointMake(0.0, 0.5);
         gradient.endPoint = CGPointMake(1.0, 0.5);
-        // 全部改成浅色/马卡龙渐变，避免原来的高饱和深色。
+
+        // 浅色马卡龙渐变。
         gradient.colors = @[
-            (id)[UIColor colorWithRed:1.00 green:0.72 blue:0.84 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.00 green:0.84 blue:0.66 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.70 green:0.94 blue:0.82 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.70 green:0.84 blue:1.00 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.84 green:0.72 blue:1.00 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.00 green:0.72 blue:0.84 alpha:1.0].CGColor
+            (id)[UIColor colorWithRed:1.00 green:0.80 blue:0.88 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.00 green:0.90 blue:0.76 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.80 green:0.96 blue:0.88 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.80 green:0.90 blue:1.00 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.90 green:0.82 blue:1.00 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.00 green:0.80 blue:0.88 alpha:1.0].CGColor
         ];
         gradient.locations = @[@0.0, @0.20, @0.40, @0.60, @0.80, @1.0];
         gradient.masksToBounds = YES;
@@ -575,16 +584,18 @@ static void DYToolsScanGradientLabelsInView(UIView *root, BOOL topBarOnly) {
 
             if (shouldApply) {
                 DYToolsApplyRealtimeTextGradient(label);
+            } else if (objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey)) {
+                // 清掉之前误套上的渐变，避免翻到个人主页后仍残留彩色文字。
+                DYToolsRemoveTextGradient(label);
             }
         }
 
-        // 顶部频道在 40.x 里部分是 UIButton.titleLabel。
-        // 直接把渐变应用到 titleLabel，解决“顶栏没有效果”。
         if (topBarOnly && [view isKindOfClass:UIButton.class]) {
             UIButton *button = (UIButton *)view;
             UILabel *titleLabel = button.titleLabel;
             NSString *title = [button titleForState:UIControlStateNormal] ?: titleLabel.text;
-            if (title.length && titleLabel) {
+
+            if (titleLabel && title.length) {
                 BOOL knownTopWord = NO;
                 NSArray<NSString *> *words = @[
                     @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
@@ -597,13 +608,42 @@ static void DYToolsScanGradientLabelsInView(UIView *root, BOOL topBarOnly) {
                         break;
                     }
                 }
-                if (knownTopWord) {
+
+                if (knownTopWord &&
+                    DYToolsViewBelongsToVideoPage(titleLabel)) {
                     DYToolsApplyRealtimeTextGradient(titleLabel);
                 }
             }
         }
 
         [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+static void DYToolsRemoveGradientsOutsideVideoPages(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState == UISceneActivationStateUnattached) continue;
+
+        for (UIWindow *window in windowScene.windows) {
+            if (window.hidden || window.alpha <= 0.01) continue;
+
+            NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
+            while (queue.count) {
+                UIView *view = queue.firstObject;
+                [queue removeObjectAtIndex:0];
+
+                if ([view isKindOfClass:UILabel.class] &&
+                    objc_getAssociatedObject(view, kDYToolsTextGradientLayerKey) &&
+                    !DYToolsViewBelongsToVideoPage(view)) {
+                    DYToolsRemoveTextGradient((UILabel *)view);
+                }
+
+                [queue addObjectsFromArray:view.subviews];
+            }
+        }
     }
 }
 
@@ -619,34 +659,27 @@ static void DYToolsScanRealtimeGradientPages(void) {
         for (UIWindow *window in windowScene.windows) {
             if (window.hidden || window.alpha <= 0.01 || !window.rootViewController) continue;
 
-            DYToolsScanGradientLabelsInView(window, YES);
-
-            UIViewController *vc = window.rootViewController;
+            // 先找真正的视频页，再只在视频页内部处理顶栏和文案。
             NSMutableArray<UIViewController *> *controllers =
-                [NSMutableArray arrayWithObject:vc];
+                [NSMutableArray arrayWithObject:window.rootViewController];
 
             while (controllers.count) {
                 UIViewController *current = controllers.firstObject;
                 [controllers removeObjectAtIndex:0];
 
-                NSString *name = NSStringFromClass(current.class);
-                BOOL isVideoPage =
-                    [name containsString:@"AWEPlayInteraction"] ||
-                    [name containsString:@"AwemeDetail"] ||
-                    [name containsString:@"PlayerViewController"] ||
-                    [name containsString:@"AWEAwemeDetail"] ||
-                    [name containsString:@"AwemePlay"];
-
-                if (isVideoPage) {
+                if (DYToolsIsVideoController(current)) {
+                    DYToolsScanGradientLabelsInView(current.view, YES);
                     DYToolsScanGradientLabelsInView(current.view, NO);
                 }
 
                 [controllers addObjectsFromArray:current.childViewControllers];
-
                 if (current.presentedViewController) {
                     [controllers addObject:current.presentedViewController];
                 }
             }
+
+            // 清理之前错误染色的个人主页/其它页面文字。
+            DYToolsRemoveGradientsOutsideVideoPages();
         }
     }
 }

@@ -188,6 +188,7 @@ BOOL DYFSIsEnabled(void) {
         @"DYYYHideHotSearch",
         @"DYYYHideComment",
         @"DYYYHideBottomDot",
+        @"DYYYHideSidebarDot",
         @"DYYYHideBottomBg",
         @"DYYYHidePadTabBarElements",
         @"DYYYHideSidebarRecentApps",
@@ -219,6 +220,7 @@ BOOL DYFSIsEnabled(void) {
         @"DYYYHideAvatarList",
         @"DYYYHideAvatarBubble",
         @"DYYYHideLeftSideBar",
+        @"DYYYHideSidebarDot",
         @"DYYYHideNearbyCapsuleView",
         @"DYYYHideDanmuButton",
         @"DYYYHideCancelMute",
@@ -280,6 +282,7 @@ BOOL DYFSIsEnabled(void) {
         @"DYYYHidePlusButton",
         @"DYYYHideComment",
         @"DYYYHideBottomDot",
+        @"DYYYHideSidebarDot",
         @"DYYYHideBottomBg",
         @"DYYYHidePadTabBarElements"
     ];
@@ -4279,7 +4282,8 @@ static UIViewController *DYToolsTopViewController(void) {
         @[@"移除看剧",@"DYYYHideCinema",@"看剧 电影"],
         @[@"移除少儿",@"DYYYHideKidsV2",@"少儿 儿童"],
         @[@"移除游戏",@"DYYYHideGame",@"游戏"],
-        @[@"移除长视频",@"DYYYHideMediumVideo",@"长视频 视频"]
+        @[@"移除长视频",@"DYYYHideMediumVideo",@"长视频 视频"],
+        @[@"去除左侧红点",@"DYYYHideSidebarDot",@"左侧 红点 小红点 红色圆点 侧栏 红点"]
     ];
     for (NSArray *x in top) add(x[0],x[1],@"移除顶栏",@"top",x[2]);
 
@@ -4335,7 +4339,8 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"移除看剧",   @"key":@"DYYYHideCinema"},
         @{@"title":@"移除少儿",   @"key":@"DYYYHideKidsV2"},
         @{@"title":@"移除游戏",   @"key":@"DYYYHideGame"},
-        @{@"title":@"移除长视频", @"key":@"DYYYHideMediumVideo"}
+        @{@"title":@"移除长视频", @"key":@"DYYYHideMediumVideo"},
+        @{@"title":@"去除左侧红点", @"key":@"DYYYHideSidebarDot"}
     ];
 
     if (_focusKey.length > 0) {
@@ -4460,7 +4465,7 @@ static UIViewController *DYToolsTopViewController(void) {
         @{@"title":@"隐藏底栏我的", @"key":@"DYYYHideMyButton"},
         @{@"title":@"隐藏底栏加号", @"key":@"DYYYHidePlusButton"},
         @{@"title":@"隐藏底栏评论", @"key":@"DYYYHideComment"},
-        @{@"title":@"隐藏底栏红点", @"key":@"DYYYHideBottomDot"},
+        @{@"title":@"去除底栏红点", @"key":@"DYYYHideBottomDot"},
         @{@"title":@"隐藏底栏背景", @"key":@"DYYYHideBottomBg"},
         @{@"title":@"精简平板底栏", @"key":@"DYYYHidePadTabBarElements"}
     ];

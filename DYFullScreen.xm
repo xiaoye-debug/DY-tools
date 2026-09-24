@@ -834,12 +834,12 @@ static void DYToolsUpdateIPGradient(UILabel *label) {
         gradient.startPoint = CGPointMake(0.0, 0.5);
         gradient.endPoint = CGPointMake(1.0, 0.5);
         gradient.colors = @[
-            (id)[UIColor colorWithRed:1.0 green:0.20 blue:0.55 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:0.65 blue:0.10 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.20 green:0.95 blue:0.85 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.25 green:0.45 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.75 green:0.25 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:0.20 blue:0.55 alpha:1.0].CGColor
+            (id)[UIColor colorWithRed:1.00 green:0.84 blue:0.91 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.00 green:0.94 blue:0.82 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.84 green:0.98 blue:0.91 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.84 green:0.92 blue:1.00 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.93 green:0.86 blue:1.00 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.00 green:0.84 blue:0.91 alpha:1.0].CGColor
         ];
         gradient.locations = @[@0.0, @0.20, @0.40, @0.60, @0.80, @1.0];
         gradient.masksToBounds = YES;
@@ -4234,9 +4234,8 @@ static UIViewController *DYToolsTopViewController(void) {
         @[@"国外解析账号",@"DYYYGeonamesUsername",@"国外 解析 账号"],
         @[@"时间标签颜色",@"DYYYLabelColor",@"时间 标签 颜色"],
         @[@"属地随机渐变",@"DYYYEnableRandomGradient",@"属地 渐变 随机"],
-        @[@"视频文字实时彩色渐变",@"DYYYEnableRealtimeTextGradient",@"视频 名字 文案 顶栏 推荐 关注 直播 彩色 渐变"],
         @[@"视频页去除合集栏",@"DYYYHideVideoCollectionBar",@"视频 合集 合集栏 去除"],
-        @[@"去除剪映等软件弹窗",@"DYYYRemoveSoftwarePopups",@"剪映 CapCut 快影 必剪 秒剪 软件 弹窗 推广 来源"],
+        @[@"去除弹窗",@"DYYYRemoveSoftwarePopups",@"剪映 CapCut 快影 必剪 秒剪 软件 弹窗 推广 来源"],
         @[@"隐藏系统顶栏",@"DYYYHideStatusbar",@"系统顶栏 状态栏 隐藏"],
         @[@"关注二次确认",@"DYYYFollowTips",@"关注 二次确认"],
         @[@"收藏二次确认",@"DYYYCollectTips",@"收藏 二次确认"],
@@ -4674,9 +4673,8 @@ static void DYToolsBasicSetDefaultIfNeeded(NSString *key, id value) {
         @{@"title":@"毛玻璃透明度",@"key":@"DYYYCommentBlurTransparent",@"type":@"text",@"placeholder":@"0-1小数"},@{@"title":@"通知圆角半径",@"key":@"DYYYNotificationCornerRadius",@"type":@"text",@"placeholder":@"默认12"},
         @{@"title":@"时间属地显示",@"key":@"DYYYEnableArea",@"type":@"switch"},@{@"title":@"国外解析账号",@"key":@"DYYYGeonamesUsername",@"type":@"text",@"placeholder":@"需填写才能解析国外"},
         @{@"title":@"时间标签颜色",@"key":@"DYYYLabelColor",@"type":@"text",@"placeholder":@"十六进制"},@{@"title":@"属地随机渐变",@"key":@"DYYYEnableRandomGradient",@"type":@"switch"},
-        @{@"title":@"视频文字实时彩色渐变",@"key":@"DYYYEnableRealtimeTextGradient",@"type":@"switch"},
         @{@"title":@"视频页去除合集栏",@"key":@"DYYYHideVideoCollectionBar",@"type":@"switch"},
-        @{@"title":@"去除剪映等软件弹窗",@"key":@"DYYYRemoveSoftwarePopups",@"type":@"switch"},
+        @{@"title":@"去除弹窗",@"key":@"DYYYRemoveSoftwarePopups",@"type":@"switch"},
         @{@"title":@"隐藏系统顶栏",@"key":@"DYYYHideStatusbar",@"type":@"switch"},@{@"title":@"关注二次确认",@"key":@"DYYYFollowTips",@"type":@"switch"},
         @{@"title":@"收藏二次确认",@"key":@"DYYYCollectTips",@"type":@"switch"},@{@"title":@"默认直播画质",@"key":@"DYYYLiveQuality",@"type":@"picker"},
         @{@"title":@"提高视频画质",@"key":@"DYYYEnableVideoHighestQuality",@"type":@"switch"},@{@"title":@"禁用直播PCDN功能",@"key":@"DYYYDisableLivePCDN",@"type":@"switch"},@{@"title":@"禁止直播入口自动隐藏",@"key":@"DYYYDisableAutoHideLive",@"type":@"switch"},@{@"title":@"显示开播时长",@"key":@"DYYYShowLiveDuration",@"type":@"switch"},@{@"title":@"禁用访客记录上传",@"key":@"DYYYDisableProfileVisitRecordUpload",@"type":@"switch"},@{@"title":@"禁用作品浏览记录上传",@"key":@"DYYYDisableFeedHistoryUpload",@"type":@"switch"},@{@"title":@"小程序跳广告",@"key":@"DYYYMiniProgramSkipAd",@"type":@"switch"},

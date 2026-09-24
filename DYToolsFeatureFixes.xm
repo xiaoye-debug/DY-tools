@@ -790,6 +790,130 @@ static void DYFixApplyNotificationBlur(void) {
 
 %end
 
+
+#pragma mark - 去除左侧红点 / 底栏红点
+
+static BOOL DYToolsRedDotClassName(UIView *view) {
+    if (!view) return NO;
+    NSString *name = NSStringFromClass(view.class).lowercaseString;
+    return [name containsString:@"badge"] ||
+           [name containsString:@"redpoint"] ||
+           [name containsString:@"reddot"] ||
+           [name containsString:@"unread"] ||
+           [name containsString:@"dot"];
+}
+
+static BOOL DYToolsIsRedColor(UIColor *color) {
+    if (!color) return NO;
+
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    if (![color getRed:&r green:&g blue:&b alpha:&a]) {
+        CGFloat w = 0;
+        if (![color getWhite:&w alpha:&a]) return NO;
+        return NO;
+    }
+
+    return a > 0.05 && r > 0.65 && r > g * 1.45 && r > b * 1.35;
+}
+
+static BOOL DYToolsLooksLikeRedDot(UIView *view) {
+    if (!view || view.hidden || view.alpha <= 0.01) return NO;
+
+    if (DYToolsRedDotClassName(view)) return YES;
+
+    NSString *accessibility = view.accessibilityLabel.lowercaseString ?: @"";
+    if ([accessibility containsString:@"红点"] ||
+        [accessibility containsString:@"未读"] ||
+        [accessibility containsString:@"badge"] ||
+        [accessibility containsString:@"unread"]) {
+        return YES;
+    }
+
+    CGRect frame = view.bounds;
+    CGFloat w = CGRectGetWidth(frame);
+    CGFloat h = CGRectGetHeight(frame);
+
+    // 只把非常小、近似圆形且明显偏红的视图视为红点。
+    if (w >= 3.0 && w <= 24.0 &&
+        h >= 3.0 && h <= 24.0 &&
+        fabs(w - h) <= MAX(3.0, w * 0.35) &&
+        DYToolsIsRedColor(view.backgroundColor)) {
+        return YES;
+    }
+
+    if (w >= 3.0 && w <= 24.0 &&
+        h >= 3.0 && h <= 24.0 &&
+        fabs(w - h) <= MAX(3.0, w * 0.35) &&
+        view.layer.cornerRadius >= MIN(w, h) * 0.35 &&
+        DYToolsIsRedColor(view.layer.backgroundColor ? [UIColor colorWithCGColor:view.layer.backgroundColor] : nil)) {
+        return YES;
+    }
+
+    return NO;
+}
+
+static void DYToolsHideRedDotsInContainer(UIView *container) {
+    if (!container) return;
+
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:container];
+
+    while (queue.count) {
+        UIView *view = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+
+        if (view != container && DYToolsLooksLikeRedDot(view)) {
+            view.hidden = YES;
+            view.alpha = 0.0;
+            view.userInteractionEnabled = NO;
+            continue;
+        }
+
+        [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+static void DYToolsScanRedDots(void) {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    BOOL hideLeft = [defaults boolForKey:@"DYYYHideSidebarDot"];
+    BOOL hideBottom = [defaults boolForKey:@"DYYYHideBottomDot"];
+
+    if (!hideLeft && !hideBottom) return;
+
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *ws = (UIWindowScene *)scene;
+        if (ws.activationState == UISceneActivationStateUnattached) continue;
+
+        for (UIWindow *window in ws.windows) {
+            if (window.hidden || window.alpha <= 0.01) continue;
+
+            NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
+
+            while (queue.count) {
+                UIView *view = queue.firstObject;
+                [queue removeObjectAtIndex:0];
+
+                NSString *name = NSStringFromClass(view.class);
+
+                if (hideLeft &&
+                    ([name isEqualToString:@"AWELeftSideBarEntranceView"] ||
+                     [name containsString:@"LeftSideBarEntranceView"])) {
+                    DYToolsHideRedDotsInContainer(view);
+                }
+
+                if (hideBottom &&
+                    ([name isEqualToString:@"AWENormalModeTabBar"] ||
+                     [name containsString:@"NormalModeTabBar"])) {
+                    DYToolsHideRedDotsInContainer(view);
+                }
+
+                [queue addObjectsFromArray:view.subviews];
+            }
+        }
+    }
+}
+
 #pragma mark - 兜底扫描
 //
 // 某些 40.x 页面不会触发旧 Hook 的 layout 回调，
@@ -799,6 +923,8 @@ static void DYFixApplyNotificationBlur(void) {
 static NSTimer *gDYFixTimer = nil;
 
 static void DYFixRunScan(void) {
+    DYToolsScanRedDots();
+
     if (DYFixBool(@"DYYYEnableCommentBlur")) {
         DYFixApplyCommentBlur();
     }

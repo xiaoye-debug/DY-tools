@@ -104,7 +104,7 @@ static BOOL DYToolsHideVideoCollectionEnabled(void) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideVideoCollectionBar"];
 }
 
-static BOOL DYToolsIsVideoPageView(UIView *view) {
+static BOOL DYToolsIsVideoCollectionPageView(UIView *view) {
     if (!view) return NO;
     UIResponder *r = view;
     for (NSUInteger i = 0; i < 30 && (r = [r nextResponder]); i++) {
@@ -812,7 +812,7 @@ static void DYFixRunScan(void) {
     %init(_ungrouped);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        DYToolsStartVideoCollectionScanner();
+        DYToolsScanVideoCollectionBars();
         DYToolsStartPopupScanner();
 
         if (gDYFixTimer) return;

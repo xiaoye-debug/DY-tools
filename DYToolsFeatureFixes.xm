@@ -244,330 +244,82 @@ static void DYToolsScanVideoCollectionBars(void) {
     }
 }
 
-#pragma mark - 视频页去除剪映等软件推广弹窗/来源条
+#pragma mark - 视频页去除弹窗
 
-static BOOL DYToolsRemoveSoftwarePopupEnabled(void) {
+static BOOL DYToolsRemovePopupEnabled(void) {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYRemoveSoftwarePopups"];
 }
 
-static BOOL DYToolsSoftwareNameText(NSString *text) {
+static BOOL DYToolsPopupKeyword(NSString *text) {
     if (!text.length) return NO;
 
-    NSArray<NSString *> *names = @[
+    NSArray<NSString *> *keywords = @[
         @"剪映", @"CapCut", @"快影", @"必剪", @"秒剪",
         @"醒图", @"美图秀秀", @"轻颜", @"一甜", @"映剪",
-        @"万兴喵影", @"来画"
+        @"万兴喵影", @"来画",
+        @"推广", @"广告", @"广告内容", @"广告详情",
+        @"立即使用", @"打开应用", @"使用模板", @"拍同款",
+        @"去看看", @"查看详情", @"立即体验", @"立即打开"
     ];
 
-    for (NSString *name in names) {
-        if ([text localizedCaseInsensitiveContainsString:name]) {
-            return YES;
-        }
+    for (NSString *keyword in keywords) {
+        if ([text localizedCaseInsensitiveContainsString:keyword]) return YES;
     }
     return NO;
 }
 
-static void DYToolsHideSoftwarePopupFromLabel(UILabel *label) {
-    if (!label || !DYToolsRemoveSoftwarePopupEnabled()) return;
-
-    NSString *text = [label.text stringByTrimmingCharactersInSet:
-                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (!DYToolsSoftwareNameText(text)) return;
-
-    // 先隐藏文字本身。
-    label.hidden = YES;
-    label.alpha = 0.0;
-    label.userInteractionEnabled = NO;
-
-    // 截图中的“剪映 | AI演唱...”是一个小型来源/推广容器。
-    // 向上找最多 3 层，只隐藏尺寸较小的容器，避免误伤整个视频页面。
-    UIView *candidate = label;
-    for (NSUInteger i = 0; i < 3; i++) {
-        UIView *parent = candidate.superview;
-        if (!parent) break;
-
-        CGRect rect = [parent convertRect:parent.bounds toView:label.window];
-        CGFloat screenW = CGRectGetWidth(label.window.bounds);
-        CGFloat screenH = CGRectGetHeight(label.window.bounds);
-
-        if (screenW > 0 && screenH > 0 &&
-            CGRectGetWidth(rect) <= screenW * 0.75 &&
-            CGRectGetHeight(rect) <= 100.0 &&
-            CGRectGetWidth(rect) >= 20.0 &&
-            CGRectGetHeight(rect) >= 12.0) {
-            candidate = parent;
-        } else {
-            break;
-        }
-    }
-
-    if (candidate != label) {
-        candidate.hidden = YES;
-        candidate.alpha = 0.0;
-        candidate.userInteractionEnabled = NO;
-    }
+static BOOL DYToolsPopupClassName(UIView *view) {
+    if (!view) return NO;
+    NSString *name = NSStringFromClass(view.class);
+    return [name localizedCaseInsensitiveContainsString:@"popup"] ||
+           [name localizedCaseInsensitiveContainsString:@"popview"] ||
+           [name localizedCaseInsensitiveContainsString:@"popover"] ||
+           [name localizedCaseInsensitiveContainsString:@"promotion"] ||
+           [name localizedCaseInsensitiveContainsString:@"marketing"] ||
+           [name localizedCaseInsensitiveContainsString:@"adcontainer"];
 }
 
-static void DYToolsScanSoftwarePopupsInView(UIView *root) {
-    if (!root || !root.window || !DYToolsRemoveSoftwarePopupEnabled()) return;
-
-    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
-
-    while (queue.count) {
-        UIView *view = queue.firstObject;
-        [queue removeObjectAtIndex:0];
-
-        if ([view isKindOfClass:UILabel.class]) {
-            DYToolsHideSoftwarePopupFromLabel((UILabel *)view);
-        } else if ([view isKindOfClass:UIButton.class]) {
-            UIButton *button = (UIButton *)view;
-            NSString *title = [button titleForState:UIControlStateNormal];
-            if (DYToolsSoftwareNameText(title)) {
-                button.hidden = YES;
-                button.alpha = 0.0;
-                button.userInteractionEnabled = NO;
-            }
-        }
-
-        [queue addObjectsFromArray:view.subviews];
-    }
-}
-
-static void DYToolsRestoreSoftwarePopups(void) {
-    // 关闭开关后不强制恢复所有 hidden 状态，避免把抖音自身原本隐藏的视图错误显示出来。
-    // 新页面/重建视图时会自然恢复。
-}
-
-static void DYToolsScanSoftwarePopups(void) {
-    if (!DYToolsRemoveSoftwarePopupEnabled()) return;
-
-    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-        if (![scene isKindOfClass:UIWindowScene.class]) continue;
-
-        UIWindowScene *windowScene = (UIWindowScene *)scene;
-        if (windowScene.activationState == UISceneActivationStateUnattached) continue;
-
-        for (UIWindow *window in windowScene.windows) {
-            if (window.hidden || window.alpha <= 0.01 || !window.rootViewController) continue;
-            DYToolsScanSoftwarePopupsInView(window);
-        }
-    }
-}
-
-static NSTimer *gDYToolsSoftwarePopupTimer = nil;
-
-static void DYToolsStartSoftwarePopupScanner(void) {
-    if (gDYToolsSoftwarePopupTimer) return;
-
-    gDYToolsSoftwarePopupTimer =
-        [NSTimer scheduledTimerWithTimeInterval:0.25
-                                         repeats:YES
-                                           block:^(__unused NSTimer *timer) {
-        if (DYToolsRemoveSoftwarePopupEnabled()) {
-            DYToolsScanSoftwarePopups();
-        }
-    }];
-
-    [[NSRunLoop mainRunLoop] addTimer:gDYToolsSoftwarePopupTimer
-                              forMode:NSRunLoopCommonModes];
-}
-
-#pragma mark - 实时彩色渐变文字：视频名字/文案/顶栏
-
-static const void *kDYToolsTextGradientLayerKey = &kDYToolsTextGradientLayerKey;
-static const void *kDYToolsTextGradientMaskKey = &kDYToolsTextGradientMaskKey;
-
-static BOOL DYToolsRealtimeTextGradientEnabled(void) {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableRealtimeTextGradient"];
-}
-
-static BOOL DYToolsIsVideoController(UIViewController *vc) {
-    if (!vc) return NO;
-    NSString *name = NSStringFromClass(vc.class);
-    return [name containsString:@"AWEPlayInteraction"] ||
-           [name containsString:@"AwemeDetail"] ||
-           [name containsString:@"PlayerViewController"] ||
-           [name containsString:@"AWEAwemeDetail"] ||
-           [name containsString:@"AwemePlay"];
-}
-
-static BOOL DYToolsViewBelongsToVideoPage(UIView *view) {
+static BOOL DYToolsIsVideoPageView(UIView *view) {
     if (!view) return NO;
     UIResponder *r = view;
     for (NSUInteger i = 0; i < 45 && (r = [r nextResponder]); i++) {
-        if ([r isKindOfClass:UIViewController.class] &&
-            DYToolsIsVideoController((UIViewController *)r)) {
+        if (![r isKindOfClass:UIViewController.class]) continue;
+        NSString *name = NSStringFromClass([r class]);
+        if ([name containsString:@"AWEPlayInteraction"] ||
+            [name containsString:@"AwemeDetail"] ||
+            [name containsString:@"PlayerViewController"] ||
+            [name containsString:@"AWEAwemeDetail"] ||
+            [name containsString:@"AwemePlay"]) {
             return YES;
         }
     }
     return NO;
 }
 
-static BOOL DYToolsGradientTextIsTopBar(UILabel *label) {
-    if (!label.text.length || !label.window) return NO;
+static void DYToolsHidePopupContainer(UIView *view) {
+    if (!view || !view.window) return;
 
-    NSString *text = [label.text stringByTrimmingCharactersInSet:
-                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (!text.length || text.length > 12) return NO;
+    CGRect rect = [view convertRect:view.bounds toView:view.window];
+    CGFloat screenW = CGRectGetWidth(view.window.bounds);
+    CGFloat screenH = CGRectGetHeight(view.window.bounds);
 
-    // 只认抖音顶部频道文字，不再把“任意顶部 UI 控件”当成顶栏。
-    NSArray<NSString *> *topBarWords = @[
-        @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
-        @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
-        @"首页", @"附近", @"海安"
-    ];
+    if (screenW <= 0 || screenH <= 0) return;
 
-    for (NSString *word in topBarWords) {
-        if ([text isEqualToString:word]) return YES;
+    if (CGRectGetWidth(rect) < 20.0 ||
+        CGRectGetHeight(rect) < 12.0 ||
+        CGRectGetWidth(rect) > screenW * 0.88 ||
+        CGRectGetHeight(rect) > screenH * 0.28) {
+        return;
     }
 
-    // 动态频道名称只允许出现在真正的屏幕顶部区域。
-    CGRect r = [label convertRect:label.bounds toView:label.window];
-    CGFloat h = CGRectGetHeight(label.window.bounds);
-    CGFloat w = CGRectGetWidth(label.window.bounds);
-    if (h <= 0 || w <= 0) return NO;
-
-    CGFloat midY = CGRectGetMidY(r);
-    CGFloat midX = CGRectGetMidX(r);
-
-    return midY >= 0.045 * h &&
-           midY <= 0.19 * h &&
-           midX >= 0.12 * w &&
-           midX <= 0.88 * w &&
-           CGRectGetHeight(r) <= 45.0;
+    view.hidden = YES;
+    view.alpha = 0.0;
+    view.userInteractionEnabled = NO;
 }
 
-static BOOL DYToolsGradientTextLooksLikeVideoText(UILabel *label, UIView *root) {
-    if (!label.text.length || !root || !DYToolsViewBelongsToVideoPage(label)) return NO;
-
-    NSString *text = [label.text stringByTrimmingCharactersInSet:
-                      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (!text.length || text.length > 220) return NO;
-
-    // 过滤明显不是作者/文案的控件文字。
-    NSArray<NSString *> *excluded = @[
-        @"赞", @"评论", @"分享", @"转发", @"收藏", @"更多",
-        @"不感兴趣", @"下一集", @"合集", @"关注", @"直播",
-        @"推荐", @"朋友", @"热点", @"同城", @"精选"
-    ];
-    for (NSString *word in excluded) {
-        if ([text isEqualToString:word]) return NO;
-    }
-
-    // 排除纯数字、时间、进度和 IP 属地标签。
-    NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
-    if ([text rangeOfCharacterFromSet:nonDigits].location == NSNotFound) return NO;
-    if ([text rangeOfString:@"IP属地"].location != NSNotFound) return NO;
-    if ([text rangeOfString:@"/"].location != NSNotFound && text.length < 16) return NO;
-
-    CGRect r = [label convertRect:label.bounds toView:root];
-    CGFloat w = CGRectGetWidth(root.bounds);
-    CGFloat h = CGRectGetHeight(root.bounds);
-    CGFloat x = CGRectGetMinX(r);
-    CGFloat midY = CGRectGetMidY(r);
-
-    if (w <= 0 || h <= 0) return NO;
-
-    // 只锁定视频左下作者/文案区域。
-    // 右侧点赞/评论/分享、底部导航、合集栏全部排除。
-    if (x < 0 || x > w * 0.70) return NO;
-    if (midY < h * 0.69 || midY > h * 0.88) return NO;
-    if (CGRectGetHeight(r) > 65.0) return NO;
-
-    return YES;
-}
-
-static void DYToolsRemoveTextGradient(UILabel *label) {
-    if (!label) return;
-
-    CAGradientLayer *gradient =
-        objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey);
-    if ([gradient isKindOfClass:CAGradientLayer.class]) {
-        [gradient removeFromSuperlayer];
-    }
-
-    objc_setAssociatedObject(label, kDYToolsTextGradientLayerKey,
-                             nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(label, kDYToolsTextGradientMaskKey,
-                             nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-    label.textColor = UIColor.whiteColor;
-}
-
-static void DYToolsApplyRealtimeTextGradient(UILabel *label) {
-    if (!label || !label.text.length) return;
-
-    [label layoutIfNeeded];
-
-    CAGradientLayer *gradient =
-        objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey);
-    CATextLayer *mask =
-        objc_getAssociatedObject(label, kDYToolsTextGradientMaskKey);
-
-    if (![gradient isKindOfClass:CAGradientLayer.class] ||
-        ![mask isKindOfClass:CATextLayer.class]) {
-
-        gradient = [CAGradientLayer layer];
-        gradient.name = @"DYToolsRealtimeTextGradient";
-        gradient.startPoint = CGPointMake(0.0, 0.5);
-        gradient.endPoint = CGPointMake(1.0, 0.5);
-
-        // 浅色马卡龙渐变。
-        gradient.colors = @[
-            (id)[UIColor colorWithRed:1.00 green:0.80 blue:0.88 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.00 green:0.90 blue:0.76 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.80 green:0.96 blue:0.88 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.80 green:0.90 blue:1.00 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.90 green:0.82 blue:1.00 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.00 green:0.80 blue:0.88 alpha:1.0].CGColor
-        ];
-        gradient.locations = @[@0.0, @0.20, @0.40, @0.60, @0.80, @1.0];
-        gradient.masksToBounds = YES;
-
-        mask = [CATextLayer layer];
-        mask.contentsScale = UIScreen.mainScreen.scale;
-        gradient.mask = mask;
-
-        [label.layer addSublayer:gradient];
-
-        objc_setAssociatedObject(label, kDYToolsTextGradientLayerKey,
-                                 gradient, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(label, kDYToolsTextGradientMaskKey,
-                                 mask, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-        CABasicAnimation *animation =
-            [CABasicAnimation animationWithKeyPath:@"locations"];
-        animation.fromValue = @[@(-0.8), @(-0.6), @(-0.4), @(-0.2), @0.0, @0.2];
-        animation.toValue = @[@0.8, @1.0, @1.2, @1.4, @1.6, @1.8];
-        animation.duration = 4.0;
-        animation.repeatCount = HUGE_VALF;
-        animation.timingFunction =
-            [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
-        [gradient addAnimation:animation forKey:@"DYToolsRealtimeTextColorFlow"];
-    }
-
-    gradient.frame = label.bounds;
-
-    UIFont *font = label.font ?: [UIFont systemFontOfSize:12.0];
-    mask.frame = label.bounds;
-    mask.string = label.text;
-    mask.font = (__bridge CFTypeRef)font.fontName;
-    mask.fontSize = MAX(font.pointSize, 1.0);
-    mask.alignmentMode =
-        (label.textAlignment == NSTextAlignmentCenter)
-        ? kCAAlignmentCenter
-        : (label.textAlignment == NSTextAlignmentRight
-           ? kCAAlignmentRight
-           : kCAAlignmentLeft);
-    mask.truncationMode = kCATruncationEnd;
-    mask.contentsScale = UIScreen.mainScreen.scale;
-
-    label.textColor = UIColor.clearColor;
-    label.layer.masksToBounds = NO;
-}
-
-static void DYToolsScanGradientLabelsInView(UIView *root, BOOL topBarOnly) {
-    if (!root || !root.window) return;
+static void DYToolsScanPopupView(UIView *root) {
+    if (!root || !root.window || !DYToolsRemovePopupEnabled()) return;
+    if (!DYToolsIsVideoPageView(root)) return;
 
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
 
@@ -575,80 +327,43 @@ static void DYToolsScanGradientLabelsInView(UIView *root, BOOL topBarOnly) {
         UIView *view = queue.firstObject;
         [queue removeObjectAtIndex:0];
 
+        BOOL keyword = NO;
         if ([view isKindOfClass:UILabel.class]) {
-            UILabel *label = (UILabel *)view;
-
-            BOOL shouldApply = topBarOnly
-                ? DYToolsGradientTextIsTopBar(label)
-                : DYToolsGradientTextLooksLikeVideoText(label, root);
-
-            if (shouldApply) {
-                DYToolsApplyRealtimeTextGradient(label);
-            } else if (objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey)) {
-                // 清掉之前误套上的渐变，避免翻到个人主页后仍残留彩色文字。
-                DYToolsRemoveTextGradient(label);
-            }
+            keyword = DYToolsPopupKeyword(((UILabel *)view).text);
+        } else if ([view isKindOfClass:UIButton.class]) {
+            keyword = DYToolsPopupKeyword([(UIButton *)view titleForState:UIControlStateNormal]);
         }
 
-        if (topBarOnly && [view isKindOfClass:UIButton.class]) {
-            UIButton *button = (UIButton *)view;
-            UILabel *titleLabel = button.titleLabel;
-            NSString *title = [button titleForState:UIControlStateNormal] ?: titleLabel.text;
+        if (keyword || DYToolsPopupClassName(view)) {
+            UIView *candidate = view;
 
-            if (titleLabel && title.length) {
-                BOOL knownTopWord = NO;
-                NSArray<NSString *> *words = @[
-                    @"推荐", @"关注", @"朋友", @"直播", @"精选", @"商城", @"同城",
-                    @"团购", @"热点", @"经验", @"短剧", @"看剧", @"少儿", @"游戏",
-                    @"首页", @"附近", @"海安"
-                ];
-                for (NSString *word in words) {
-                    if ([title isEqualToString:word]) {
-                        knownTopWord = YES;
-                        break;
-                    }
-                }
+            for (NSUInteger i = 0; i < 4; i++) {
+                UIView *parent = candidate.superview;
+                if (!parent) break;
 
-                if (knownTopWord &&
-                    DYToolsViewBelongsToVideoPage(titleLabel)) {
-                    DYToolsApplyRealtimeTextGradient(titleLabel);
+                CGRect r = [parent convertRect:parent.bounds toView:root.window];
+                CGFloat w = CGRectGetWidth(root.window.bounds);
+                CGFloat h = CGRectGetHeight(root.window.bounds);
+
+                if (CGRectGetWidth(r) >= 20.0 &&
+                    CGRectGetHeight(r) >= 12.0 &&
+                    CGRectGetWidth(r) <= w * 0.88 &&
+                    CGRectGetHeight(r) <= h * 0.28) {
+                    candidate = parent;
+                } else {
+                    break;
                 }
             }
+
+            DYToolsHidePopupContainer(candidate);
         }
 
         [queue addObjectsFromArray:view.subviews];
     }
 }
 
-static void DYToolsRemoveGradientsOutsideVideoPages(void) {
-    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-        if (![scene isKindOfClass:UIWindowScene.class]) continue;
-
-        UIWindowScene *windowScene = (UIWindowScene *)scene;
-        if (windowScene.activationState == UISceneActivationStateUnattached) continue;
-
-        for (UIWindow *window in windowScene.windows) {
-            if (window.hidden || window.alpha <= 0.01) continue;
-
-            NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
-            while (queue.count) {
-                UIView *view = queue.firstObject;
-                [queue removeObjectAtIndex:0];
-
-                if ([view isKindOfClass:UILabel.class] &&
-                    objc_getAssociatedObject(view, kDYToolsTextGradientLayerKey) &&
-                    !DYToolsViewBelongsToVideoPage(view)) {
-                    DYToolsRemoveTextGradient((UILabel *)view);
-                }
-
-                [queue addObjectsFromArray:view.subviews];
-            }
-        }
-    }
-}
-
-static void DYToolsScanRealtimeGradientPages(void) {
-    if (!DYToolsRealtimeTextGradientEnabled()) return;
+static void DYToolsScanAllPopupWindows(void) {
+    if (!DYToolsRemovePopupEnabled()) return;
 
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
@@ -659,82 +374,41 @@ static void DYToolsScanRealtimeGradientPages(void) {
         for (UIWindow *window in windowScene.windows) {
             if (window.hidden || window.alpha <= 0.01 || !window.rootViewController) continue;
 
-            // 先找真正的视频页，再只在视频页内部处理顶栏和文案。
             NSMutableArray<UIViewController *> *controllers =
                 [NSMutableArray arrayWithObject:window.rootViewController];
 
             while (controllers.count) {
-                UIViewController *current = controllers.firstObject;
+                UIViewController *vc = controllers.firstObject;
                 [controllers removeObjectAtIndex:0];
 
-                if (DYToolsIsVideoController(current)) {
-                    DYToolsScanGradientLabelsInView(current.view, YES);
-                    DYToolsScanGradientLabelsInView(current.view, NO);
+                if (DYToolsIsVideoPageView(vc.view)) {
+                    DYToolsScanPopupView(vc.view);
                 }
 
-                [controllers addObjectsFromArray:current.childViewControllers];
-                if (current.presentedViewController) {
-                    [controllers addObject:current.presentedViewController];
+                [controllers addObjectsFromArray:vc.childViewControllers];
+                if (vc.presentedViewController) {
+                    [controllers addObject:vc.presentedViewController];
                 }
-            }
-
-            // 清理之前错误染色的个人主页/其它页面文字。
-            DYToolsRemoveGradientsOutsideVideoPages();
-        }
-    }
-}
-
-static void DYToolsRemoveAllRealtimeGradients(void) {
-    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-        if (![scene isKindOfClass:UIWindowScene.class]) continue;
-
-        UIWindowScene *windowScene = (UIWindowScene *)scene;
-        for (UIWindow *window in windowScene.windows) {
-            NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
-
-            while (queue.count) {
-                UIView *view = queue.firstObject;
-                [queue removeObjectAtIndex:0];
-
-                if ([view isKindOfClass:UILabel.class]) {
-                    UILabel *label = (UILabel *)view;
-                    if (objc_getAssociatedObject(label, kDYToolsTextGradientLayerKey)) {
-                        DYToolsRemoveTextGradient(label);
-                    }
-                }
-
-                [queue addObjectsFromArray:view.subviews];
             }
         }
     }
 }
 
-static NSTimer *gDYToolsRealtimeTextGradientTimer = nil;
-static NSTimer *gDYToolsVideoCollectionTimer = nil;
+static NSTimer *gDYToolsPopupTimer = nil;
 
-static void DYToolsStartVideoCollectionScanner(void) {
-    if (gDYToolsVideoCollectionTimer) return;
-    gDYToolsVideoCollectionTimer = [NSTimer scheduledTimerWithTimeInterval:0.35 repeats:YES block:^(__unused NSTimer *timer) {
-        DYToolsScanVideoCollectionBars();
-    }];
-    [[NSRunLoop mainRunLoop] addTimer:gDYToolsVideoCollectionTimer forMode:NSRunLoopCommonModes];
-}
+static void DYToolsStartPopupScanner(void) {
+    if (gDYToolsPopupTimer) return;
 
-static void DYToolsStartRealtimeTextGradientScanner(void) {
-    if (gDYToolsRealtimeTextGradientTimer) return;
-
-    gDYToolsRealtimeTextGradientTimer =
-        [NSTimer scheduledTimerWithTimeInterval:0.35
+    gDYToolsPopupTimer =
+        [NSTimer scheduledTimerWithTimeInterval:0.25
                                          repeats:YES
                                            block:^(__unused NSTimer *timer) {
-        if (DYToolsRealtimeTextGradientEnabled()) {
-            DYToolsScanRealtimeGradientPages();
-        } else {
-            DYToolsRemoveAllRealtimeGradients();
+        if (DYToolsRemovePopupEnabled()) {
+            DYToolsScanAllPopupWindows();
         }
     }];
 
-    [[NSRunLoop mainRunLoop] addTimer:gDYToolsRealtimeTextGradientTimer
+    [[NSRunLoop mainRunLoop] addTimer:gDYToolsPopupTimer
                               forMode:NSRunLoopCommonModes];
 }
 
@@ -1032,7 +706,28 @@ static void DYFixApplyNotificationBlur(void) {
 
 %end
 
-#pragma mark - 9. 屏蔽开屏广告 / 广告模型
+#pragma mark - 9. DYYY 屏蔽广告
+
+%hook AWEAwemeModel
+
+- (id)initWithDictionary:(id)dictionary error:(id *)error {
+    id object = %orig(dictionary, error);
+
+    if (!DYFixBool(@"DYYYNoAds") || !object) {
+        return object;
+    }
+
+    @try {
+        if ([[object valueForKey:@"isAds"] boolValue]) {
+            return nil;
+        }
+    } @catch (__unused NSException *e) {
+    }
+
+    return object;
+}
+
+%end
 
 %hook TTAdSplashModel
 
@@ -1045,24 +740,52 @@ static void DYFixApplyNotificationBlur(void) {
 
 %end
 
-%hook AWEAwemeModel
+%hook AWEOriginalAdModel
 
-- (id)initWithDictionary:(id)dictionary error:(id *)error {
-    id object = %orig(dictionary, error);
+- (instancetype)init {
+    if (DYFixBool(@"DYYYNoAds")) {
+        return nil;
+    }
+    return %orig;
+}
+
+- (instancetype)initWithDictionary:(id)dictionary error:(NSError **)error {
+    if (DYFixBool(@"DYYYNoAds")) {
+        return nil;
+    }
+    return %orig;
+}
+
+%end
+
+%hook AWEGeneralSearchModel
+
+- (instancetype)initWithDictionary:(id)dictionary error:(NSError **)error {
+    id object = %orig;
 
     if (!DYFixBool(@"DYYYNoAds") || !object) {
         return object;
     }
 
     @try {
-        BOOL isAds = [[object valueForKey:@"isAds"] boolValue];
-        if (isAds) {
+        if ([[object valueForKeyPath:@"commonDynamicPatchModel.is_ad"] integerValue] == 1) {
             return nil;
         }
     } @catch (__unused NSException *e) {
     }
 
     return object;
+}
+
+%end
+
+%hook AWEAwesomeSplashFeedCellOldAccessoryView
+
+- (id)ddExtraView {
+    if (DYFixBool(@"DYYYNoAds")) {
+        return nil;
+    }
+    return %orig;
 }
 
 %end
@@ -1089,9 +812,8 @@ static void DYFixRunScan(void) {
     %init(_ungrouped);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        DYToolsStartRealtimeTextGradientScanner();
         DYToolsStartVideoCollectionScanner();
-        DYToolsStartSoftwarePopupScanner();
+        DYToolsStartPopupScanner();
 
         if (gDYFixTimer) return;
 
